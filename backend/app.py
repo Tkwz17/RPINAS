@@ -13,12 +13,17 @@ from .network import apply_network_services, configure_access_point, set_static_
 from .samba import apply_samba, delete_samba_user, set_samba_password, write_samba_config
 from .storage import (
     DEFAULT_STORAGE_PATH,
+    USERNAME_PATTERN,
     detect_storage_devices,
     disk_usage,
     ensure_nas_structure,
     migrate_storage,
     normalize_storage_path,
 )
+
+
+def _valid_username(username: str) -> bool:
+    return bool(username) and bool(USERNAME_PATTERN.fullmatch(username))
 
 SESSION_TTL_HOURS = 24
 
@@ -181,6 +186,8 @@ def create_app() -> Flask:
             password = str(entry.get("password", "")).strip()
             if not username or not password:
                 return jsonify({"error": "Each user requires username and password"}), 400
+            if not _valid_username(username):
+                return jsonify({"error": "Usernames may only contain letters, numbers, '.', '_' and '-'"}), 400
             if username in seen:
                 return jsonify({"error": "Duplicate usernames are not allowed"}), 400
             seen.add(username)
@@ -269,6 +276,8 @@ def create_app() -> Flask:
         password = str(payload.get("password", "")).strip()
         if not username or not password:
             return jsonify({"error": "Username and password are required"}), 400
+        if not _valid_username(username):
+            return jsonify({"error": "Usernames may only contain letters, numbers, '.', '_' and '-'"}), 400
 
         with get_conn() as conn:
             exists = conn.execute("SELECT username FROM nas_users WHERE username = ?", (username,)).fetchone()
@@ -287,6 +296,8 @@ def create_app() -> Flask:
     @app.delete("/api/users/<username>")
     @require_auth
     def users_delete(username: str) -> Any:
+        if not _valid_username(username):
+            return jsonify({"error": "Invalid username"}), 400
         with get_conn() as conn:
             conn.execute("DELETE FROM nas_users WHERE username = ?", (username,))
         delete_samba_user(username)
@@ -297,6 +308,8 @@ def create_app() -> Flask:
     @app.post("/api/users/<username>/reset-password")
     @require_auth
     def users_reset_password(username: str) -> Any:
+        if not _valid_username(username):
+            return jsonify({"error": "Invalid username"}), 400
         payload = request.get_json(silent=True) or {}
         password = str(payload.get("password", "")).strip()
         if not password:
