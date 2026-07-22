@@ -86,6 +86,8 @@ def _bootstrap_defaults() -> None:
         set_config("wifi_password", "")
     if get_config("storage_path") is None:
         set_config("storage_path", DEFAULT_STORAGE_PATH)
+    if get_config("storage_target") is None:
+        set_config("storage_target", "sd")
     if get_config("setup_complete") is None:
         set_config("setup_complete", False)
 
@@ -111,6 +113,22 @@ def _safe_storage_path() -> str:
         return DEFAULT_STORAGE_PATH
 
 
+def _resolve_storage_target(storage_target: str) -> str:
+    target = storage_target.strip().lower()
+    if target == "sd":
+        return DEFAULT_STORAGE_PATH
+    if target == "external":
+        for device in detect_storage_devices():
+            if device.is_sd_card or not device.mountpoint:
+                continue
+            try:
+                return normalize_storage_path(os.path.join(device.mountpoint, "NAS"))
+            except ValueError:
+                continue
+        raise ValueError("No mounted external storage detected")
+    raise ValueError("Invalid storage target")
+
+
 def create_app() -> Flask:
     app = Flask(__name__, static_folder="static", static_url_path="")
     app.config["JSON_SORT_KEYS"] = False
@@ -128,6 +146,7 @@ def create_app() -> Flask:
                 "setup_complete": setup_complete,
                 "wifi_ssid": get_config("wifi_ssid", "RPINAS"),
                 "storage_path": storage_path,
+                "storage_target": get_config("storage_target", "sd"),
                 "guest_enabled": bool(get_config("guest_enabled", False)),
                 "storage_usage": usage,
                 "network_ip": "192.168.4.1",
@@ -144,16 +163,16 @@ def create_app() -> Flask:
         admin_password = payload.get("admin_password", "")
         users = payload.get("users", [])
         guest_enabled = bool(payload.get("guest_enabled", False))
-        selected_storage = str(payload.get("storage_path", DEFAULT_STORAGE_PATH)).strip()
+        storage_target = str(payload.get("storage_target", "sd")).strip().lower()
 
         if len(admin_password) < 8:
             return jsonify({"error": "Admin password must be at least 8 characters"}), 400
         if not users:
             return jsonify({"error": "At least one NAS user is required"}), 400
         try:
-            selected_storage = normalize_storage_path(selected_storage)
+            selected_storage = _resolve_storage_target(storage_target)
         except ValueError:
-            return jsonify({"error": "Invalid storage path"}), 400
+            return jsonify({"error": "Invalid storage target"}), 400
 
         validated_users = []
         seen = set()
@@ -170,6 +189,7 @@ def create_app() -> Flask:
         set_config("admin_password_hash", generate_password_hash(admin_password))
         set_config("guest_enabled", guest_enabled)
         set_config("storage_path", selected_storage)
+        set_config("storage_target", storage_target)
         set_config("setup_complete", True)
 
         with get_conn() as conn:
@@ -328,23 +348,24 @@ def create_app() -> Flask:
     def storage_get() -> Any:
         path = _safe_storage_path()
         usage = disk_usage(path) if os.path.isdir(path) else {"total": 0, "used": 0, "free": 0, "used_pct": 0}
-        return jsonify({"storage_path": path, "usage": usage})
+        return jsonify({"storage_path": path, "storage_target": get_config("storage_target", "sd"), "usage": usage})
 
     @app.post("/api/storage")
     @require_auth
     def storage_set() -> Any:
         payload = request.get_json(silent=True) or {}
-        new_path = str(payload.get("storage_path", "")).strip()
-        if not new_path:
-            return jsonify({"error": "Storage path required"}), 400
+        storage_target = str(payload.get("storage_target", "")).strip().lower()
+        if storage_target not in {"sd", "external"}:
+            return jsonify({"error": "Storage target required"}), 400
         try:
-            new_path = normalize_storage_path(new_path)
+            new_path = _resolve_storage_target(storage_target)
         except ValueError:
-            return jsonify({"error": "Invalid storage path"}), 400
+            return jsonify({"error": "Invalid storage target"}), 400
 
         old_path = _safe_storage_path()
         migrate_storage(old_path, new_path)
         set_config("storage_path", new_path)
+        set_config("storage_target", storage_target)
         _configure_nas_runtime(new_path, bool(get_config("guest_enabled", False)))
         log_event("storage_updated", {"old": old_path, "new": new_path})
         return jsonify({"ok": True})

@@ -34,7 +34,7 @@ def test_setup_requires_user(client):
             "admin_password": "strong-pass-123",
             "users": [],
             "guest_enabled": False,
-            "storage_path": "/tmp/nas",
+            "storage_target": "sd",
         },
     )
     assert response.status_code == 400

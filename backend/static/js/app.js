@@ -35,8 +35,11 @@ function setupWizard(status) {
     <div id="wizardUsers"></div>
     <button id="addWizardUser">Add NAS User</button>
     <label><input id="guestEnabled" type="checkbox" style="width:auto" /> Enable guest access to Shared folder</label>
-    <label>Storage Path
-      <input id="storagePath" value="${status.storage_path}" placeholder="/srv/rpinas/NAS" />
+    <label>Storage Type
+      <select id="storageTarget">
+        <option value="sd" ${status.storage_target === 'sd' ? 'selected' : ''}>SD card</option>
+        <option value="external" ${status.storage_target === 'external' ? 'selected' : ''}>External drive</option>
+      </select>
     </label>
     <button id="finishSetup">Complete Setup</button>
     <p id="wizardError"></p>
@@ -68,7 +71,7 @@ function setupWizard(status) {
           admin_password: document.getElementById('adminPass').value,
           users,
           guest_enabled: document.getElementById('guestEnabled').checked,
-          storage_path: document.getElementById('storagePath').value.trim(),
+          storage_target: document.getElementById('storageTarget').value,
         })
       });
       loginScreen('Setup complete. Sign in as administrator.');
@@ -165,15 +168,21 @@ const pages = {
     const [storage, devices] = await Promise.all([api('/api/storage'), api('/api/storage/devices')]);
     document.getElementById('page').innerHTML = card(`
       <h3>Storage</h3>
+      <p>Current target: <b>${storage.storage_target}</b></p>
       <p>Current path: <b>${storage.storage_path}</b></p>
       <p>Used: ${storage.usage.used_pct}%</p>
-      <label>Set Storage Path<input id="storageInput" value="${storage.storage_path}"/></label>
+      <label>Storage Type
+        <select id="storageTarget">
+          <option value="sd" ${storage.storage_target === 'sd' ? 'selected' : ''}>SD card</option>
+          <option value="external" ${storage.storage_target === 'external' ? 'selected' : ''}>External drive</option>
+        </select>
+      </label>
       <button id="saveStorage">Apply Storage</button>
       <h4>Detected Devices</h4>
       <pre>${devices.devices.map(d => `${d.path} (${d.size}) mount=${d.mountpoint || '-'} removable=${d.removable}`).join('\n') || 'No devices detected'}</pre>
     `);
     document.getElementById('saveStorage').onclick = async () => {
-      await api('/api/storage', { method: 'POST', body: JSON.stringify({ storage_path: document.getElementById('storageInput').value.trim() }) });
+      await api('/api/storage', { method: 'POST', body: JSON.stringify({ storage_target: document.getElementById('storageTarget').value }) });
       pages.storage();
     };
   },
