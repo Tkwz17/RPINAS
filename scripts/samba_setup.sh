@@ -24,3 +24,6 @@ CFG
 
 systemctl enable smbd nmbd
 systemctl restart smbd nmbd
+
+mkdir -p /var/lib/rpinas
+touch /var/lib/rpinas/.samba_configured
