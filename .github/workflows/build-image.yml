@@ -7,65 +7,44 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout RPINAS repo
         uses: actions/checkout@v4
+
+      - name: Build custom Raspberry Pi OS image
+        uses: pguyot/arm-runner-action@v2
         with:
-          path: rpinas-src
+          base_image: https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-11-19/2024-11-19-raspios-bookworm-arm64-lite.img.xz
+          image_additional_mb: 1024
+          commands: |
+            mkdir -p /opt/rpinas-src /etc/systemd/system
+            cp -r "${GITHUB_WORKSPACE}/backend" /opt/rpinas-src/backend
 
-      - name: Clone rpi-image-gen
-        run: git clone https://github.com/raspberrypi/rpi-image-gen.git
+            install -m 0755 "${GITHUB_WORKSPACE}/scripts/first_boot.sh" /usr/local/bin/rpinas-first-boot
+            install -m 0755 "${GITHUB_WORKSPACE}/scripts/network_setup.sh" /usr/local/bin/rpinas-network-setup
+            install -m 0755 "${GITHUB_WORKSPACE}/scripts/samba_setup.sh" /usr/local/bin/rpinas-samba-setup
+            install -m 0755 "${GITHUB_WORKSPACE}/scripts/install_backend.sh" /usr/local/bin/rpinas-install-backend
 
-      - name: Install rpi-image-gen dependencies
-        working-directory: rpi-image-gen
-        run: sudo ./install_deps.sh
+            install -m 0644 "${GITHUB_WORKSPACE}/systemd/rpinas-backend.service" /etc/systemd/system/rpinas-backend.service
+            install -m 0644 "${GITHUB_WORKSPACE}/systemd/rpinas-firstboot.service" /etc/systemd/system/rpinas-firstboot.service
+            install -m 0644 "${GITHUB_WORKSPACE}/systemd/rpinas-network-setup.service" /etc/systemd/system/rpinas-network-setup.service
+            install -m 0644 "${GITHUB_WORKSPACE}/systemd/rpinas-samba-setup.service" /etc/systemd/system/rpinas-samba-setup.service
+            install -m 0644 "${GITHUB_WORKSPACE}/systemd/rpinas-nas-management.service" /etc/systemd/system/rpinas-nas-management.service
 
-      - name: Build base image
-        working-directory: rpi-image-gen
-        run: ./rpi-image-gen build -c ./config/trixie-minbase.yaml
+            apt-get update
+            xargs -a "${GITHUB_WORKSPACE}/rpi-image-gen/packages/rpinas.list" apt-get install -y
 
-      - name: Locate built image
+            /usr/local/bin/rpinas-install-backend
+            systemctl enable rpinas-firstboot.service rpinas-network-setup.service \
+              rpinas-samba-setup.service rpinas-backend.service rpinas-nas-management.service
+
+      - name: Find built image
         id: findimg
-        working-directory: rpi-image-gen
-        run: |
-          IMG_PATH=$(find ./work -name "*.img" | head -n1)
-          echo "Found image: $IMG_PATH"
-          echo "img_path=$IMG_PATH" >> "$GITHUB_OUTPUT"
-
-      - name: Mount image and inject RPINAS
-        working-directory: rpi-image-gen
-        run: |
-          set -euo pipefail
-          IMG="${{ steps.findimg.outputs.img_path }}"
-
-          # Attach loop device and find the root (largest) partition
-          sudo losetup -Pf "$IMG"
-          LOOPDEV=$(losetup -j "$IMG" | cut -d: -f1)
-          echo "Loop device: $LOOPDEV"
-          ROOTPART=$(lsblk -ln -o NAME,SIZE "$LOOPDEV" | tail -n1 | awk '{print $1}')
-          echo "Root partition: /dev/$ROOTPART"
-
-          MOUNTDIR=$(mktemp -d)
-          sudo mount "/dev/$ROOTPART" "$MOUNTDIR"
-
-          # Install any extra packages RPINAS needs, inside the mounted rootfs
-          if [ -f "$GITHUB_WORKSPACE/rpinas-src/rpi-image-gen/packages/rpinas.list" ]; then
-            sudo cp /usr/bin/qemu-aarch64-static "$MOUNTDIR/usr/bin/" 2>/dev/null || true
-            PKGS=$(grep -v '^#' "$GITHUB_WORKSPACE/rpinas-src/rpi-image-gen/packages/rpinas.list" | xargs)
-            sudo chroot "$MOUNTDIR" env DEBIAN_FRONTEND=noninteractive apt-get update
-            sudo chroot "$MOUNTDIR" env DEBIAN_FRONTEND=noninteractive apt-get install -y $PKGS
-          fi
-
-          # Run the RPINAS build hook against the mounted rootfs
-          sudo ROOTFS="$MOUNTDIR" bash "$GITHUB_WORKSPACE/rpinas-src/rpi-image-gen/build-hook.sh"
-
-          sudo umount "$MOUNTDIR"
-          sudo losetup -d "$LOOPDEV"
-          echo "img_final=$IMG" >> "$GITHUB_ENV"
+        run: echo "img_path=$(find . -maxdepth 1 -name '*.img' | head -n1)" >> "$GITHUB_OUTPUT"
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
           name: rpinas-image
-          path: ${{ env.img_final }}
+          path: ${{ steps.findimg.outputs.img_path }}
