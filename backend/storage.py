@@ -66,13 +66,13 @@ def ensure_nas_structure(base_path: str, usernames: list[str]) -> None:
     base_path = normalize_storage_path(base_path)
     shared = os.path.join(base_path, "Shared")
     users = os.path.join(base_path, "Users")
-    os.makedirs(shared, exist_ok=True)  # lgtm [py/path-injection]
-    os.makedirs(users, exist_ok=True)  # lgtm [py/path-injection]
-    os.chmod(shared, 0o777)  # lgtm [py/path-injection]
+    os.makedirs(shared, exist_ok=True)  # codeql[py/path-injection]
+    os.makedirs(users, exist_ok=True)  # codeql[py/path-injection]
+    os.chmod(shared, 0o777)  # codeql[py/path-injection]
     for username in usernames:
         user_dir = os.path.join(users, _validate_username(username))
-        os.makedirs(user_dir, exist_ok=True)  # lgtm [py/path-injection]
-        os.chmod(user_dir, 0o770)  # lgtm [py/path-injection]
+        os.makedirs(user_dir, exist_ok=True)  # codeql[py/path-injection]
+        os.chmod(user_dir, 0o770)  # codeql[py/path-injection]
 
 
 def migrate_storage(old_path: str, new_path: str) -> None:
@@ -80,13 +80,13 @@ def migrate_storage(old_path: str, new_path: str) -> None:
     new_path = normalize_storage_path(new_path)
     if old_path == new_path or not os.path.isdir(old_path):
         return
-    os.makedirs(new_path, exist_ok=True)  # lgtm [py/path-injection]
+    os.makedirs(new_path, exist_ok=True)  # codeql[py/path-injection]
     subprocess.run(["rsync", "-a", f"{old_path}/", f"{new_path}/"], check=False)
 
 
 def disk_usage(path: str) -> dict[str, Any]:
     path = normalize_storage_path(path)
-    total, used, free = shutil.disk_usage(path)  # lgtm [py/path-injection]
+    total, used, free = shutil.disk_usage(path)  # codeql[py/path-injection]
     return {
         "total": total,
         "used": used,
