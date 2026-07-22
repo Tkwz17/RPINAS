@@ -1,6 +1,7 @@
 [Unit]
 Description=RPINAS Network Setup
 Before=hostapd.service dnsmasq.service
+ConditionPathExists=!/var/lib/rpinas/.network_configured
 
 [Service]
 Type=oneshot
