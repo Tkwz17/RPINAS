@@ -152,8 +152,8 @@ def create_app() -> Flask:
             return jsonify({"error": "At least one NAS user is required"}), 400
         try:
             selected_storage = normalize_storage_path(selected_storage)
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
+        except ValueError:
+            return jsonify({"error": "Invalid storage path"}), 400
 
         validated_users = []
         seen = set()
@@ -339,8 +339,8 @@ def create_app() -> Flask:
             return jsonify({"error": "Storage path required"}), 400
         try:
             new_path = normalize_storage_path(new_path)
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
+        except ValueError:
+            return jsonify({"error": "Invalid storage path"}), 400
 
         old_path = _safe_storage_path()
         migrate_storage(old_path, new_path)
