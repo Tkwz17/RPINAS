@@ -1,0 +1,15 @@
+[Unit]
+Description=RPINAS Backend API and Admin UI
+After=network-online.target smb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/rpinas/backend
+Environment=RPINAS_DB_PATH=/var/lib/rpinas/rpinas.db
+ExecStart=/opt/rpinas/.venv/bin/gunicorn -b 0.0.0.0:80 backend.app:create_app
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

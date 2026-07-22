@@ -1,0 +1,11 @@
+[Unit]
+Description=RPINAS Samba Setup
+Before=smbd.service nmbd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rpinas-samba-setup
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

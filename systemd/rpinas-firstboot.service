@@ -1,0 +1,12 @@
+[Unit]
+Description=RPINAS First Boot Initialization
+After=network.target
+ConditionPathExists=!/var/lib/rpinas/.first_boot_done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rpinas-first-boot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

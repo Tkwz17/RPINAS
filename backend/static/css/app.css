@@ -1,0 +1,60 @@
+:root {
+  --bg: #0f172a;
+  --bg2: #111827;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --glass: rgba(255,255,255,.08);
+  --border: rgba(255,255,255,.18);
+  --accent: #38bdf8;
+}
+
+html[data-theme="light"] {
+  --bg: #dbeafe;
+  --bg2: #f8fafc;
+  --text: #0f172a;
+  --muted: #334155;
+  --glass: rgba(255,255,255,.55);
+  --border: rgba(255,255,255,.7);
+  --accent: #0369a1;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at top right, #1d4ed8 0%, var(--bg) 45%, var(--bg2) 100%);
+}
+
+.app-shell { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.card {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(18px);
+  animation: fade .5s ease;
+}
+.grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+input, button, select { width:100%; border-radius: 10px; border:1px solid var(--border); padding: 10px; margin-top:8px; background: rgba(255,255,255,.1); color:var(--text); }
+button { cursor:pointer; }
+button:hover { filter:brightness(1.1); transform:translateY(-1px); transition:.2s; }
+.hidden { display:none !important; }
+.nav { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+.nav button { width:auto; padding:10px 16px; }
+.table { width:100%; border-collapse: collapse; }
+.table td, .table th { border-bottom:1px solid var(--border); padding: 10px 6px; text-align:left; }
+.badge { display:inline-block; padding:4px 10px; border-radius:999px; background: rgba(56,189,248,.22); }
+small { color:var(--muted); }
+
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 700px) {
+  .app-shell { padding: 10px; }
+  .card { border-radius: 12px; }
+}
