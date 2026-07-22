@@ -1,8 +1,16 @@
 import os
 import pwd
+import re
 import subprocess
 
 SAMBA_CONF = "/etc/samba/smb.conf"
+USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+def _validate_username(username: str) -> str:
+    if not USERNAME_PATTERN.fullmatch(username):
+        raise ValueError("Invalid username")
+    return username
 
 
 def _system_user_exists(username: str) -> bool:
@@ -14,17 +22,23 @@ def _system_user_exists(username: str) -> bool:
 
 
 def ensure_system_user(username: str) -> None:
+    username = _validate_username(username)
     if not _system_user_exists(username):
         subprocess.run(["useradd", "-M", "-s", "/usr/sbin/nologin", username], check=False)
 
 
 def set_samba_password(username: str, password: str) -> None:
+    username = _validate_username(username)
     ensure_system_user(username)
-    cmd = f"(echo '{password}'; echo '{password}') | smbpasswd -a -s {username}"
-    subprocess.run(["bash", "-lc", cmd], check=False)
+    # Pass the password via stdin rather than interpolating it into a shell
+    # string, so passwords containing quotes/special characters can't break
+    # or inject into the command.
+    stdin_data = f"{password}\n{password}\n"
+    subprocess.run(["smbpasswd", "-a", "-s", username], input=stdin_data, text=True, check=False)
 
 
 def delete_samba_user(username: str) -> None:
+    username = _validate_username(username)
     subprocess.run(["smbpasswd", "-x", username], check=False)
     subprocess.run(["userdel", username], check=False)
 
