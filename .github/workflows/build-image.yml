@@ -13,39 +13,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build custom Raspberry Pi OS image
+        id: build_image
         uses: pguyot/arm-runner-action@v2
         with:
           base_image: https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-11-19/2024-11-19-raspios-bookworm-arm64-lite.img.xz
           image_additional_mb: 1024
           commands: |
-            mkdir -p /opt/rpinas-src /etc/systemd/system
-            cp -r backend /opt/rpinas-src/backend
-
-            install -m 0755 scripts/first_boot.sh /usr/local/bin/rpinas-first-boot
-            install -m 0755 scripts/network_setup.sh /usr/local/bin/rpinas-network-setup
-            install -m 0755 scripts/samba_setup.sh /usr/local/bin/rpinas-samba-setup
-            install -m 0755 scripts/install_backend.sh /usr/local/bin/rpinas-install-backend
-
-            install -m 0644 systemd/rpinas-backend.service /etc/systemd/system/rpinas-backend.service
-            install -m 0644 systemd/rpinas-firstboot.service /etc/systemd/system/rpinas-firstboot.service
-            install -m 0644 systemd/rpinas-network-setup.service /etc/systemd/system/rpinas-network-setup.service
-            install -m 0644 systemd/rpinas-samba-setup.service /etc/systemd/system/rpinas-samba-setup.service
-            install -m 0644 systemd/rpinas-nas-management.service /etc/systemd/system/rpinas-nas-management.service
-
-            apt-get update
-            xargs -a rpi-image-gen/packages/rpinas.list apt-get install -y
-
-            /usr/local/bin/rpinas-install-backend
-            systemctl enable rpinas-firstboot.service rpinas-network-setup.service \
-              rpinas-samba-setup.service rpinas-backend.service rpinas-nas-management.service
-
-      - name: Copy image to workspace
-        run: |
-          sudo cp /home/runner/work/_temp/arm-runner/arm-runner.img ./rpinas.img
-          sudo chown runner:runner ./rpinas.img
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rpinas-image
-          path: ./rpinas.img
+            mkdir -p
