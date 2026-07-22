@@ -41,3 +41,6 @@ CFG
 systemctl unmask hostapd || true
 systemctl enable hostapd dnsmasq
 systemctl restart hostapd dnsmasq
+
+mkdir -p /var/lib/rpinas
+touch /var/lib/rpinas/.network_configured
