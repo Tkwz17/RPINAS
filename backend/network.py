@@ -1,12 +1,24 @@
 import hashlib
 import os
+import re
 import subprocess
 
 HOSTAPD_CONF = "/etc/hostapd/hostapd.conf"
 DNSMASQ_CONF = "/etc/dnsmasq.d/rpinas.conf"
+# 802.11 SSIDs are at most 32 bytes; disallow control characters (in
+# particular newlines) so a crafted SSID can't inject extra directives
+# into hostapd.conf.
+SSID_PATTERN = re.compile(r"^[^\x00-\x1f\x7f]{1,32}$")
+
+
+def _validate_ssid(ssid: str) -> str:
+    if not SSID_PATTERN.fullmatch(ssid):
+        raise ValueError("SSID must be 1-32 characters with no control characters")
+    return ssid
 
 
 def configure_access_point(ssid: str, password: str | None = None) -> None:
+    ssid = _validate_ssid(ssid)
     channel = "6"
     if password:
         psk = hashlib.pbkdf2_hmac("sha1", password.encode("utf-8"), ssid.encode("utf-8"), 4096, 32).hex()
