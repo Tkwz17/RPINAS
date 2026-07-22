@@ -8,6 +8,6 @@ samba-common-bin
 avahi-daemon
 hostapd
 dnsmasq
-iwgetid
+wireless-tools
 rsync
 util-linux
