@@ -19,21 +19,21 @@ jobs:
           image_additional_mb: 1024
           commands: |
             mkdir -p /opt/rpinas-src /etc/systemd/system
-            cp -r "${GITHUB_WORKSPACE}/backend" /opt/rpinas-src/backend
+            cp -r backend /opt/rpinas-src/backend
 
-            install -m 0755 "${GITHUB_WORKSPACE}/scripts/first_boot.sh" /usr/local/bin/rpinas-first-boot
-            install -m 0755 "${GITHUB_WORKSPACE}/scripts/network_setup.sh" /usr/local/bin/rpinas-network-setup
-            install -m 0755 "${GITHUB_WORKSPACE}/scripts/samba_setup.sh" /usr/local/bin/rpinas-samba-setup
-            install -m 0755 "${GITHUB_WORKSPACE}/scripts/install_backend.sh" /usr/local/bin/rpinas-install-backend
+            install -m 0755 scripts/first_boot.sh /usr/local/bin/rpinas-first-boot
+            install -m 0755 scripts/network_setup.sh /usr/local/bin/rpinas-network-setup
+            install -m 0755 scripts/samba_setup.sh /usr/local/bin/rpinas-samba-setup
+            install -m 0755 scripts/install_backend.sh /usr/local/bin/rpinas-install-backend
 
-            install -m 0644 "${GITHUB_WORKSPACE}/systemd/rpinas-backend.service" /etc/systemd/system/rpinas-backend.service
-            install -m 0644 "${GITHUB_WORKSPACE}/systemd/rpinas-firstboot.service" /etc/systemd/system/rpinas-firstboot.service
-            install -m 0644 "${GITHUB_WORKSPACE}/systemd/rpinas-network-setup.service" /etc/systemd/system/rpinas-network-setup.service
-            install -m 0644 "${GITHUB_WORKSPACE}/systemd/rpinas-samba-setup.service" /etc/systemd/system/rpinas-samba-setup.service
-            install -m 0644 "${GITHUB_WORKSPACE}/systemd/rpinas-nas-management.service" /etc/systemd/system/rpinas-nas-management.service
+            install -m 0644 systemd/rpinas-backend.service /etc/systemd/system/rpinas-backend.service
+            install -m 0644 systemd/rpinas-firstboot.service /etc/systemd/system/rpinas-firstboot.service
+            install -m 0644 systemd/rpinas-network-setup.service /etc/systemd/system/rpinas-network-setup.service
+            install -m 0644 systemd/rpinas-samba-setup.service /etc/systemd/system/rpinas-samba-setup.service
+            install -m 0644 systemd/rpinas-nas-management.service /etc/systemd/system/rpinas-nas-management.service
 
             apt-get update
-            xargs -a "${GITHUB_WORKSPACE}/rpi-image-gen/packages/rpinas.list" apt-get install -y
+            xargs -a rpi-image-gen/packages/rpinas.list apt-get install -y
 
             /usr/local/bin/rpinas-install-backend
             systemctl enable rpinas-firstboot.service rpinas-network-setup.service \
