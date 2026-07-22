@@ -1,6 +1,7 @@
 [Unit]
 Description=RPINAS Samba Setup
 Before=smbd.service nmbd.service
+ConditionPathExists=!/var/lib/rpinas/.samba_configured
 
 [Service]
 Type=oneshot
