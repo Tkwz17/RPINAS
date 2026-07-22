@@ -11,7 +11,14 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from .db import get_config, get_conn, init_db, log_event, set_config
 from .network import apply_network_services, configure_access_point, set_static_ap_address
 from .samba import apply_samba, delete_samba_user, set_samba_password, write_samba_config
-from .storage import DEFAULT_STORAGE_PATH, detect_storage_devices, disk_usage, ensure_nas_structure, migrate_storage
+from .storage import (
+    DEFAULT_STORAGE_PATH,
+    detect_storage_devices,
+    disk_usage,
+    ensure_nas_structure,
+    migrate_storage,
+    normalize_storage_path,
+)
 
 SESSION_TTL_HOURS = 24
 
@@ -96,6 +103,14 @@ def _configure_wifi_runtime(ssid: str, password: str | None) -> None:
     apply_network_services()
 
 
+def _safe_storage_path() -> str:
+    raw = str(get_config("storage_path", DEFAULT_STORAGE_PATH))
+    try:
+        return normalize_storage_path(raw)
+    except ValueError:
+        return DEFAULT_STORAGE_PATH
+
+
 def create_app() -> Flask:
     app = Flask(__name__, static_folder="static", static_url_path="")
     app.config["JSON_SORT_KEYS"] = False
@@ -105,7 +120,7 @@ def create_app() -> Flask:
 
     @app.get("/api/status")
     def status() -> Any:
-        storage_path = get_config("storage_path", DEFAULT_STORAGE_PATH)
+        storage_path = _safe_storage_path()
         setup_complete = bool(get_config("setup_complete", False))
         usage = disk_usage(storage_path) if os.path.isdir(storage_path) else {"total": 0, "used": 0, "free": 0, "used_pct": 0}
         return jsonify(
@@ -129,12 +144,16 @@ def create_app() -> Flask:
         admin_password = payload.get("admin_password", "")
         users = payload.get("users", [])
         guest_enabled = bool(payload.get("guest_enabled", False))
-        selected_storage = payload.get("storage_path", DEFAULT_STORAGE_PATH)
+        selected_storage = str(payload.get("storage_path", DEFAULT_STORAGE_PATH)).strip()
 
         if len(admin_password) < 8:
             return jsonify({"error": "Admin password must be at least 8 characters"}), 400
         if not users:
             return jsonify({"error": "At least one NAS user is required"}), 400
+        try:
+            selected_storage = normalize_storage_path(selected_storage)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
 
         validated_users = []
         seen = set()
@@ -199,7 +218,7 @@ def create_app() -> Flask:
     @app.get("/api/dashboard")
     @require_auth
     def dashboard() -> Any:
-        storage_path = get_config("storage_path", DEFAULT_STORAGE_PATH)
+        storage_path = _safe_storage_path()
         logs = []
         with get_conn() as conn:
             rows = conn.execute(
@@ -241,7 +260,7 @@ def create_app() -> Flask:
             )
 
         set_samba_password(username, password)
-        _configure_nas_runtime(get_config("storage_path", DEFAULT_STORAGE_PATH), bool(get_config("guest_enabled", False)))
+        _configure_nas_runtime(_safe_storage_path(), bool(get_config("guest_enabled", False)))
         log_event("user_added", {"username": username})
         return jsonify({"ok": True})
 
@@ -251,7 +270,7 @@ def create_app() -> Flask:
         with get_conn() as conn:
             conn.execute("DELETE FROM nas_users WHERE username = ?", (username,))
         delete_samba_user(username)
-        _configure_nas_runtime(get_config("storage_path", DEFAULT_STORAGE_PATH), bool(get_config("guest_enabled", False)))
+        _configure_nas_runtime(_safe_storage_path(), bool(get_config("guest_enabled", False)))
         log_event("user_deleted", {"username": username})
         return jsonify({"ok": True})
 
@@ -278,7 +297,7 @@ def create_app() -> Flask:
         payload = request.get_json(silent=True) or {}
         enabled = bool(payload.get("enabled", False))
         set_config("guest_enabled", enabled)
-        _configure_nas_runtime(get_config("storage_path", DEFAULT_STORAGE_PATH), enabled)
+        _configure_nas_runtime(_safe_storage_path(), enabled)
         log_event("guest_access_updated", {"enabled": enabled})
         return jsonify({"ok": True})
 
@@ -307,7 +326,7 @@ def create_app() -> Flask:
     @app.get("/api/storage")
     @require_auth
     def storage_get() -> Any:
-        path = get_config("storage_path", DEFAULT_STORAGE_PATH)
+        path = _safe_storage_path()
         usage = disk_usage(path) if os.path.isdir(path) else {"total": 0, "used": 0, "free": 0, "used_pct": 0}
         return jsonify({"storage_path": path, "usage": usage})
 
@@ -318,8 +337,12 @@ def create_app() -> Flask:
         new_path = str(payload.get("storage_path", "")).strip()
         if not new_path:
             return jsonify({"error": "Storage path required"}), 400
+        try:
+            new_path = normalize_storage_path(new_path)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
 
-        old_path = get_config("storage_path", DEFAULT_STORAGE_PATH)
+        old_path = _safe_storage_path()
         migrate_storage(old_path, new_path)
         set_config("storage_path", new_path)
         _configure_nas_runtime(new_path, bool(get_config("guest_enabled", False)))

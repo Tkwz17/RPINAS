@@ -3,7 +3,9 @@ import tempfile
 
 import pytest
 
-os.environ["RPINAS_DB_PATH"] = tempfile.mktemp(prefix="rpinas-test-", suffix=".db")
+TEST_DB_FILE = tempfile.NamedTemporaryFile(prefix="rpinas-test-", suffix=".db", delete=False)
+TEST_DB_FILE.close()
+os.environ["RPINAS_DB_PATH"] = TEST_DB_FILE.name
 
 from backend.app import create_app  # noqa: E402
 
@@ -12,7 +14,9 @@ from backend.app import create_app  # noqa: E402
 def client():
     app = create_app()
     app.config["TESTING"] = True
-    return app.test_client()
+    yield app.test_client()
+    if os.path.exists(TEST_DB_FILE.name):
+        os.remove(TEST_DB_FILE.name)
 
 
 def test_status_endpoint(client):

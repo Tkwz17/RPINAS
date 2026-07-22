@@ -1,3 +1,4 @@
+import hashlib
 import os
 import subprocess
 
@@ -8,9 +9,10 @@ DNSMASQ_CONF = "/etc/dnsmasq.d/rpinas.conf"
 def configure_access_point(ssid: str, password: str | None = None) -> None:
     channel = "6"
     if password:
+        psk = hashlib.pbkdf2_hmac("sha1", password.encode("utf-8"), ssid.encode("utf-8"), 4096, 32).hex()
         wpa = f"""
 wpa=2
-wpa_passphrase={password}
+wpa_psk={psk}
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
 """
@@ -33,6 +35,7 @@ address=/#/192.168.4.1
     os.makedirs(os.path.dirname(DNSMASQ_CONF), exist_ok=True)
     with open(HOSTAPD_CONF, "w", encoding="utf-8") as f:
         f.write(hostapd)
+    os.chmod(HOSTAPD_CONF, 0o600)
     with open(DNSMASQ_CONF, "w", encoding="utf-8") as f:
         f.write(dnsmasq)
 
