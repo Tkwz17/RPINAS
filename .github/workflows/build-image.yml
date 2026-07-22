@@ -1,0 +1,71 @@
+name: Build RPINAS Image
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout RPINAS repo
+        uses: actions/checkout@v4
+        with:
+          path: rpinas-src
+
+      - name: Clone rpi-image-gen
+        run: git clone https://github.com/raspberrypi/rpi-image-gen.git
+
+      - name: Install rpi-image-gen dependencies
+        working-directory: rpi-image-gen
+        run: sudo ./install_deps.sh
+
+      - name: Build base image
+        working-directory: rpi-image-gen
+        run: ./rpi-image-gen build -c ./config/trixie-minbase.yaml
+
+      - name: Locate built image
+        id: findimg
+        working-directory: rpi-image-gen
+        run: |
+          IMG_PATH=$(find ./work -name "*.img" | head -n1)
+          echo "Found image: $IMG_PATH"
+          echo "img_path=$IMG_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Mount image and inject RPINAS
+        working-directory: rpi-image-gen
+        run: |
+          set -euo pipefail
+          IMG="${{ steps.findimg.outputs.img_path }}"
+
+          # Attach loop device and find the root (largest) partition
+          sudo losetup -Pf "$IMG"
+          LOOPDEV=$(losetup -j "$IMG" | cut -d: -f1)
+          echo "Loop device: $LOOPDEV"
+          ROOTPART=$(lsblk -ln -o NAME,SIZE "$LOOPDEV" | tail -n1 | awk '{print $1}')
+          echo "Root partition: /dev/$ROOTPART"
+
+          MOUNTDIR=$(mktemp -d)
+          sudo mount "/dev/$ROOTPART" "$MOUNTDIR"
+
+          # Install any extra packages RPINAS needs, inside the mounted rootfs
+          if [ -f "$GITHUB_WORKSPACE/rpinas-src/rpi-image-gen/packages/rpinas.list" ]; then
+            sudo cp /usr/bin/qemu-aarch64-static "$MOUNTDIR/usr/bin/" 2>/dev/null || true
+            PKGS=$(grep -v '^#' "$GITHUB_WORKSPACE/rpinas-src/rpi-image-gen/packages/rpinas.list" | xargs)
+            sudo chroot "$MOUNTDIR" env DEBIAN_FRONTEND=noninteractive apt-get update
+            sudo chroot "$MOUNTDIR" env DEBIAN_FRONTEND=noninteractive apt-get install -y $PKGS
+          fi
+
+          # Run the RPINAS build hook against the mounted rootfs
+          sudo ROOTFS="$MOUNTDIR" bash "$GITHUB_WORKSPACE/rpinas-src/rpi-image-gen/build-hook.sh"
+
+          sudo umount "$MOUNTDIR"
+          sudo losetup -d "$LOOPDEV"
+          echo "img_final=$IMG" >> "$GITHUB_ENV"
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpinas-image
+          path: ${{ env.img_final }}
