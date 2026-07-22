@@ -24,6 +24,10 @@ setTheme(localStorage.getItem('rpinas_theme') || 'dark');
 
 const card = (inner) => `<section class="glass card">${inner}</section>`;
 
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (ch) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[ch]));
+
 function setupWizard(status) {
   content.innerHTML = card(`
     <h2>First Setup Wizard</h2>
@@ -139,9 +143,9 @@ const pages = {
         <table class="table">
           <thead><tr><th>Username</th><th>Created</th><th>Actions</th></tr></thead>
           <tbody>
-            ${data.users.map(u => `<tr><td>${u.username}</td><td>${u.created_at}</td><td>
-              <button onclick="resetUser('${u.username}')">Reset Password</button>
-              <button onclick="deleteUser('${u.username}')">Remove</button>
+            ${data.users.map(u => `<tr><td>${escapeHtml(u.username)}</td><td>${escapeHtml(u.created_at)}</td><td>
+              <button onclick="resetUser('${escapeHtml(u.username)}')">Reset Password</button>
+              <button onclick="deleteUser('${escapeHtml(u.username)}')">Remove</button>
             </td></tr>`).join('')}
           </tbody>
         </table>
