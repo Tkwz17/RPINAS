@@ -9,7 +9,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .db import get_config, get_conn, init_db, log_event, set_config
-from .network import apply_network_services, configure_access_point, set_static_ap_address
+from .network import apply_network_services, configure_access_point, set_static_ap_address, SSID_PATTERN
 from .samba import apply_samba, delete_samba_user, set_samba_password, write_samba_config
 from .storage import (
     DEFAULT_STORAGE_PATH,
@@ -347,6 +347,8 @@ def create_app() -> Flask:
         password = str(payload.get("password", ""))
         if not ssid:
             return jsonify({"error": "SSID is required"}), 400
+        if not SSID_PATTERN.fullmatch(ssid):
+            return jsonify({"error": "SSID must be 1-32 characters with no control characters"}), 400
         if password and len(password) < 8:
             return jsonify({"error": "WiFi password must be at least 8 characters"}), 400
 
