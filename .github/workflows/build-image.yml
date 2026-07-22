@@ -39,12 +39,13 @@ jobs:
             systemctl enable rpinas-firstboot.service rpinas-network-setup.service \
               rpinas-samba-setup.service rpinas-backend.service rpinas-nas-management.service
 
-      - name: Find built image
-        id: findimg
-        run: echo "img_path=$(find . -maxdepth 1 -name '*.img' | head -n1)" >> "$GITHUB_OUTPUT"
+      - name: Copy image to workspace
+        run: |
+          sudo cp /home/runner/work/_temp/arm-runner/arm-runner.img ./rpinas.img
+          sudo chown runner:runner ./rpinas.img
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
           name: rpinas-image
-          path: ${{ steps.findimg.outputs.img_path }}
+          path: ./rpinas.img
