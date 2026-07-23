@@ -17,7 +17,9 @@ cat >/etc/samba/smb.conf <<'CFG'
    path = /srv/rpinas/NAS/Shared
    browseable = yes
    writable = yes
-   guest ok = no
+   guest ok = yes
+   guest only = yes
+   force user = nobody
    create mask = 0666
    directory mask = 0777
 CFG
