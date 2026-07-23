@@ -9,5 +9,7 @@ avahi-daemon
 hostapd
 dnsmasq
 wireless-tools
+iproute2
+rfkill
 rsync
 util-linux
