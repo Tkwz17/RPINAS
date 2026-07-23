@@ -1,7 +1,8 @@
 [Unit]
 Description=RPINAS Backend API and Admin UI
-After=network-online.target smbd.service
+After=network-online.target smbd.service rpinas-firstboot.service
 Wants=network-online.target
+Requires=rpinas-firstboot.service
 
 [Service]
 Type=simple
