@@ -217,8 +217,24 @@ const pages = {
       <h4>Backend Logs</h4>
       <pre>${logs.logs.map(escapeHtml).join('\n')}</pre>
     `);
-    document.getElementById('rebootBtn').onclick = () => api('/api/system/reboot', { method: 'POST' });
-    document.getElementById('shutdownBtn').onclick = () => api('/api/system/shutdown', { method: 'POST' });
+    document.getElementById('rebootBtn').onclick = async () => {
+      if (!confirm('Reboot the NAS now? Active file transfers will be interrupted.')) return;
+      try {
+        await api('/api/system/reboot', { method: 'POST' });
+        alert('Rebooting now. The admin panel will be unreachable for a minute or two.');
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+    document.getElementById('shutdownBtn').onclick = async () => {
+      if (!confirm('Shut down the NAS now? You will need physical access to power it back on.')) return;
+      try {
+        await api('/api/system/shutdown', { method: 'POST' });
+        alert('Shutting down now.');
+      } catch (e) {
+        alert(e.message);
+      }
+    };
   }
 };
 
