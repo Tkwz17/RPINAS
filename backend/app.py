@@ -176,8 +176,8 @@ def create_app() -> Flask:
             return jsonify({"error": "At least one NAS user is required"}), 400
         try:
             selected_storage = _resolve_storage_target(storage_target)
-        except ValueError:
-            return jsonify({"error": "Invalid storage target"}), 400
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
 
         validated_users = []
         seen = set()
@@ -374,55 +374,7 @@ def create_app() -> Flask:
             return jsonify({"error": "Storage target required"}), 400
         try:
             new_path = _resolve_storage_target(storage_target)
-        except ValueError:
-            return jsonify({"error": "Invalid storage target"}), 400
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
 
         old_path = _safe_storage_path()
-        migrate_storage(old_path, new_path)
-        set_config("storage_path", new_path)
-        set_config("storage_target", storage_target)
-        _configure_nas_runtime(new_path, bool(get_config("guest_enabled", False)))
-        log_event("storage_updated", {"old": old_path, "new": new_path})
-        return jsonify({"ok": True})
-
-    @app.get("/api/system/logs")
-    @require_auth
-    def system_logs() -> Any:
-        try:
-            out = subprocess.check_output(["journalctl", "-u", "rpinas-backend.service", "-n", "200", "--no-pager"], text=True)
-            lines = out.splitlines()
-        except Exception:
-            lines = ["Unable to load system logs in current environment."]
-        return jsonify({"logs": lines})
-
-    @app.post("/api/system/reboot")
-    @require_auth
-    def system_reboot() -> Any:
-        subprocess.run(["systemctl", "reboot"], check=False)
-        log_event("system_reboot", {})
-        return jsonify({"ok": True})
-
-    @app.post("/api/system/shutdown")
-    @require_auth
-    def system_shutdown() -> Any:
-        subprocess.run(["systemctl", "poweroff"], check=False)
-        log_event("system_shutdown", {})
-        return jsonify({"ok": True})
-
-    @app.get("/")
-    def serve_ui() -> Any:
-        return send_from_directory(app.static_folder, "index.html")
-
-    @app.get("/<path:path>")
-    def static_proxy(path: str) -> Any:
-        static_file = os.path.join(app.static_folder, path)
-        if os.path.isfile(static_file):
-            return send_from_directory(app.static_folder, path)
-        return send_from_directory(app.static_folder, "index.html")
-
-    return app
-
-
-if __name__ == "__main__":
-    app = create_app()
-    app.run(host="0.0.0.0", port=8080)
