@@ -31,7 +31,7 @@ const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (ch) => ({
 function setupWizard(status) {
   content.innerHTML = card(`
     <h2>First Setup Wizard</h2>
-    <small>Default access point: <b>${status.wifi_ssid}</b> at <b>http://192.168.4.1</b></small>
+    <small>Default access point: <b>${escapeHtml(status.wifi_ssid)}</b> at <b>http://192.168.4.1</b></small>
     <label>Admin Password (min 8)
       <input id="adminPass" type="password" />
     </label>
@@ -128,10 +128,10 @@ const pages = {
       <div class="grid">
         ${card(`<h3>Storage Usage</h3><p>${data.storage_usage.used_pct}% used</p><small>${data.storage_usage.used} / ${data.storage_usage.total} bytes</small>`) }
         ${card(`<h3>Connected Users</h3><p>${data.users.length}</p>`) }
-        ${card(`<h3>Network Status</h3><p>${data.network.ssid}</p><small>${data.network.ip}</small>`) }
-        ${card(`<h3>System Status</h3><span class="badge">${data.system.service}</span>`) }
+        ${card(`<h3>Network Status</h3><p>${escapeHtml(data.network.ssid)}</p><small>${escapeHtml(data.network.ip)}</small>`) }
+        ${card(`<h3>System Status</h3><span class="badge">${escapeHtml(data.system.service)}</span>`) }
       </div>
-      ${card(`<h3>Recent Logs</h3><pre>${data.logs.map(l => `[${l.created_at}] ${l.event_type} ${l.details}`).join('\n')}</pre>`) }
+      ${card(`<h3>Recent Logs</h3><pre>${data.logs.map(l => `[${escapeHtml(l.created_at)}] ${escapeHtml(l.event_type)} ${escapeHtml(l.details)}`).join('\n')}</pre>`) }
     `;
   },
 
@@ -172,8 +172,8 @@ const pages = {
     const [storage, devices] = await Promise.all([api('/api/storage'), api('/api/storage/devices')]);
     document.getElementById('page').innerHTML = card(`
       <h3>Storage</h3>
-      <p>Current target: <b>${storage.storage_target}</b></p>
-      <p>Current path: <b>${storage.storage_path}</b></p>
+      <p>Current target: <b>${escapeHtml(storage.storage_target)}</b></p>
+      <p>Current path: <b>${escapeHtml(storage.storage_path)}</b></p>
       <p>Used: ${storage.usage.used_pct}%</p>
       <label>Storage Type
         <select id="storageTarget">
@@ -183,7 +183,7 @@ const pages = {
       </label>
       <button id="saveStorage">Apply Storage</button>
       <h4>Detected Devices</h4>
-      <pre>${devices.devices.map(d => `${d.path} (${d.size}) mount=${d.mountpoint || '-'} removable=${d.removable}`).join('\n') || 'No devices detected'}</pre>
+      <pre>${devices.devices.map(d => `${escapeHtml(d.path)} (${escapeHtml(d.size)}) mount=${escapeHtml(d.mountpoint || '-')} removable=${d.removable}`).join('\n') || 'No devices detected'}</pre>
     `);
     document.getElementById('saveStorage').onclick = async () => {
       await api('/api/storage', { method: 'POST', body: JSON.stringify({ storage_target: document.getElementById('storageTarget').value }) });
@@ -195,7 +195,7 @@ const pages = {
     const net = await api('/api/network');
     document.getElementById('page').innerHTML = card(`
       <h3>Network</h3>
-      <label>WiFi Name (SSID)<input id="ssid" value="${net.ssid}"/></label>
+      <label>WiFi Name (SSID)<input id="ssid" value="${escapeHtml(net.ssid)}"/></label>
       <label>WiFi Password (optional)<input id="wifiPass" type="password" placeholder="${net.password_set ? 'Already configured' : 'Open network'}"/></label>
       <button id="saveNetwork">Apply (reboot required)</button>
       <p>Current admin panel URL: <b>http://192.168.4.1</b></p>
@@ -215,7 +215,7 @@ const pages = {
         <button id="shutdownBtn">Shutdown</button>
       </div>
       <h4>Backend Logs</h4>
-      <pre>${logs.logs.join('\n')}</pre>
+      <pre>${logs.logs.map(escapeHtml).join('\n')}</pre>
     `);
     document.getElementById('rebootBtn').onclick = () => api('/api/system/reboot', { method: 'POST' });
     document.getElementById('shutdownBtn').onclick = () => api('/api/system/shutdown', { method: 'POST' });
