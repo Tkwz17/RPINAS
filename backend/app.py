@@ -378,3 +378,23 @@ def create_app() -> Flask:
             return jsonify({"error": str(exc)}), 400
 
         old_path = _safe_storage_path()
+        usernames = _get_usernames()
+
+        if new_path != old_path:
+            migrate_storage(old_path, new_path)
+
+        ensure_nas_structure(new_path, usernames)
+        set_config("storage_path", new_path)
+        set_config("storage_target", storage_target)
+
+        write_samba_config(new_path, usernames, bool(get_config("guest_enabled", False)))
+        apply_samba()
+
+        log_event("storage_updated", {"storage_target": storage_target, "storage_path": new_path})
+        return jsonify({"ok": True, "storage_path": new_path})
+
+    @app.get("/")
+    def index() -> Any:
+        return send_from_directory(app.static_folder, "index.html")
+
+    return app
