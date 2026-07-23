@@ -30,20 +30,35 @@ def detect_storage_devices() -> list[StorageDevice]:
         return []
 
     devices: list[StorageDevice] = []
-    for block in parsed.get("blockdevices", []):
-        path = f"/dev/{block['name']}"
-        transport = (block.get("tran") or "").lower()
+
+    def _collect(block: dict, parent_is_sd_card: bool, parent_transport: str) -> None:
+        # lsblk reports the transport (and sometimes only reports it) on the
+        # parent disk, not on its partitions, so a child inherits its
+        # parent's transport/SD-card status unless it reports its own.
+        transport = (block.get("tran") or parent_transport or "").lower()
+        name = block.get("name", "")
+        is_sd_card = parent_is_sd_card or transport == "mmc" or name.startswith("mmcblk")
         devices.append(
             StorageDevice(
-                name=block["name"],
-                path=path,
+                name=name,
+                path=f"/dev/{name}",
                 size=block.get("size", "unknown"),
                 mountpoint=block.get("mountpoint"),
                 fstype=block.get("fstype"),
                 removable=bool(block.get("rm", False)),
-                is_sd_card=transport == "mmc",
+                is_sd_card=is_sd_card,
             )
         )
+        # Whole disks are rarely mounted directly - what's actually mounted
+        # (and therefore usable as "external" storage) is almost always a
+        # partition nested under "children". Without recursing here, a
+        # partitioned external USB drive never shows up as a candidate.
+        for child in block.get("children", []) or []:
+            _collect(child, is_sd_card, transport)
+
+    for block in parsed.get("blockdevices", []):
+        _collect(block, False, "")
+
     return devices
 
 
