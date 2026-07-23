@@ -1,6 +1,7 @@
 [Unit]
 Description=RPINAS First Boot Initialization
-After=network.target
+After=network.target rpinas-network-setup.service rpinas-samba-setup.service
+Requires=rpinas-network-setup.service rpinas-samba-setup.service
 ConditionPathExists=!/var/lib/rpinas/.first_boot_done
 
 [Service]
