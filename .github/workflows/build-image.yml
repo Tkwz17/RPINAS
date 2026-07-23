@@ -19,7 +19,7 @@ jobs:
           base_image: https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-11-19/2024-11-19-raspios-bookworm-arm64-lite.img.xz
           image_additional_mb: 1024
           commands: |
-            set -euo pipefail
+            set -eu
 
             apt-get update
             xargs -a rpi-image-gen/packages/rpinas.list apt-get install -y
