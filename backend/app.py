@@ -1,6 +1,8 @@
 import os
 import secrets
 import subprocess
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any
@@ -132,6 +134,46 @@ def _resolve_storage_target(storage_target: str) -> str:
                 continue
         raise ValueError("No mounted external storage detected")
     raise ValueError("Invalid storage target")
+
+
+SYSTEM_SERVICE_NAME = "rpinas-backend.service"
+
+
+def _read_system_logs(lines: int = 200) -> list[str]:
+    """Return recent backend service logs. Prefers journalctl (what's actually
+    running on the Pi); falls back to the audit log table so the page still
+    works in environments without a system journal (e.g. local dev)."""
+    try:
+        result = subprocess.run(
+            ["journalctl", "-u", SYSTEM_SERVICE_NAME, "-n", str(lines), "--no-pager", "-o", "short-iso"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.splitlines()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT event_type, details, created_at FROM audit_logs ORDER BY id DESC LIMIT ?",
+            (lines,),
+        ).fetchall()
+    return [f"[{row['created_at']}] {row['event_type']} {row['details']}" for row in rows]
+
+
+def _schedule_power_action(action: str) -> None:
+    """Run systemctl reboot/poweroff slightly after returning the HTTP
+    response, so the client actually receives the 'ok' confirmation before
+    the machine goes down."""
+
+    def _run() -> None:
+        time.sleep(1)
+        subprocess.run(["systemctl", action], check=False)
+
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def create_app() -> Flask:
@@ -392,6 +434,25 @@ def create_app() -> Flask:
 
         log_event("storage_updated", {"storage_target": storage_target, "storage_path": new_path})
         return jsonify({"ok": True, "storage_path": new_path})
+
+    @app.get("/api/system/logs")
+    @require_auth
+    def system_logs() -> Any:
+        return jsonify({"logs": _read_system_logs()})
+
+    @app.post("/api/system/reboot")
+    @require_auth
+    def system_reboot() -> Any:
+        log_event("system_reboot", {})
+        _schedule_power_action("reboot")
+        return jsonify({"ok": True})
+
+    @app.post("/api/system/shutdown")
+    @require_auth
+    def system_shutdown() -> Any:
+        log_event("system_shutdown", {})
+        _schedule_power_action("poweroff")
+        return jsonify({"ok": True})
 
     @app.get("/")
     def index() -> Any:
