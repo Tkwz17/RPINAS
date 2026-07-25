@@ -1,5 +1,6 @@
 [Unit]
 Description=RPINAS Samba Setup
+Wants=smbd.service nmbd.service
 Before=smbd.service nmbd.service
 ConditionPathExists=!/var/lib/rpinas/.samba_configured
 
