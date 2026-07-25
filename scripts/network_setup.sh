@@ -5,8 +5,13 @@ set -euo pipefail
 RPINAS_SSID="${RPINAS_SSID:-RPINAS}"
 RPINAS_IP="${RPINAS_IP:-192.168.4.1}"
 RPINAS_COUNTRY="${RPINAS_COUNTRY:-GB}"
-RPINAS_PASSPHRASE="${RPINAS_PASSPHRASE:-rpinas1234}"
+RPINAS_PASSPHRASE="${RPINAS_PASSPHRASE:-}"
 WLAN_IFACE="wlan0"
+
+if [[ -n "${RPINAS_PASSPHRASE}" && ${#RPINAS_PASSPHRASE} -lt 8 ]]; then
+    echo "RPINAS_PASSPHRASE must be empty for an open AP or at least 8 characters for WPA2" >&2
+    exit 1
+fi
 
 # --- make sure the radio is actually usable ---
 rfkill unblock all || true
@@ -46,13 +51,24 @@ ieee80211d=1
 ssid=${RPINAS_SSID}
 hw_mode=g
 channel=6
-auth_algs=1
-ignore_broadcast_ssid=0
+macaddr_acl=0
+CFG
+
+if [[ -n "${RPINAS_PASSPHRASE}" ]]; then
+    cat >>/etc/hostapd/hostapd.conf <<CFG
 wpa=2
 wpa_passphrase=${RPINAS_PASSPHRASE}
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
 CFG
+else
+    cat >>/etc/hostapd/hostapd.conf <<CFG
+auth_algs=1
+ignore_broadcast_ssid=0
+CFG
+fi
+
+chmod 600 /etc/hostapd/hostapd.conf
 
 cat >/etc/default/hostapd <<CFG
 DAEMON_CONF="/etc/hostapd/hostapd.conf"

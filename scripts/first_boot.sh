@@ -11,7 +11,5 @@ chmod 777 /srv/rpinas/NAS/Shared
 # directly here as well - doing so caused both paths to race and rewrite
 # hostapd.conf/smb.conf and restart services concurrently.
 
-systemctl enable rpinas-backend.service
-systemctl start rpinas-backend.service
 
 touch /var/lib/rpinas/.first_boot_done

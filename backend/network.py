@@ -5,6 +5,7 @@ import subprocess
 import time
 
 HOSTAPD_CONF = "/etc/hostapd/hostapd.conf"
+HOSTAPD_DEFAULT = "/etc/default/hostapd"
 DNSMASQ_CONF = "/etc/dnsmasq.d/rpinas.conf"
 NM_UNMANAGED_CONF = "/etc/NetworkManager/conf.d/rpinas-unmanaged.conf"
 WLAN_IFACE = "wlan0"
@@ -60,6 +61,8 @@ def release_interface_from_network_stack() -> None:
 def configure_access_point(ssid: str, password: str | None = None) -> None:
     ssid = _validate_ssid(ssid)
     channel = "6"
+    if password and len(password) < 8:
+        raise ValueError("WiFi password must be empty or at least 8 characters")
     if password:
         psk = hashlib.pbkdf2_hmac("sha1", password.encode("utf-8"), ssid.encode("utf-8"), 4096, 32).hex()
         wpa = f"""
@@ -92,6 +95,8 @@ address=/#/{AP_IP}
     with open(HOSTAPD_CONF, "w", encoding="utf-8") as f:
         f.write(hostapd)
     os.chmod(HOSTAPD_CONF, 0o600)
+    with open(HOSTAPD_DEFAULT, "w", encoding="utf-8") as f:
+        f.write(f'DAEMON_CONF="{HOSTAPD_CONF}"\n')
     with open(DNSMASQ_CONF, "w", encoding="utf-8") as f:
         f.write(dnsmasq)
 
