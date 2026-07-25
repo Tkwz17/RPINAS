@@ -99,10 +99,11 @@ DAEMON_CONF="/etc/hostapd/hostapd.conf"
 CFG
 
 # --- dnsmasq ---
+DHCP_PREFIX="${ip_octet_1}.${ip_octet_2}.${ip_octet_3}"
 cat >/etc/dnsmasq.d/rpinas.conf <<CFG
 interface=${WLAN_IFACE}
 bind-interfaces
-dhcp-range=192.168.4.10,192.168.4.200,255.255.255.0,24h
+dhcp-range=${DHCP_PREFIX}.10,${DHCP_PREFIX}.200,255.255.255.0,24h
 address=/#/${RPINAS_IP}
 CFG
 

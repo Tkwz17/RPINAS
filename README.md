@@ -59,6 +59,25 @@ RPINAS is a Raspberry Pi NAS appliance project that builds a ready-to-flash syst
 
 > This repository intentionally does **not** generate or commit the final `.img` file.
 
+
+## Image Validation
+
+Before flashing a release image, run the repository checks that validate the backend and image integration scripts:
+
+```bash
+pytest -q
+python -m compileall -q backend
+bash -n scripts/*.sh rpi-image-gen/build-hook.sh
+```
+
+To smoke-test the image hook without producing a final `.img`, run it against an already-prepared `rpi-image-gen` root filesystem that contains the packages from `rpi-image-gen/packages/rpinas.list`:
+
+```bash
+ROOTFS=/path/to/rpi-image-gen/rootfs ./rpi-image-gen/build-hook.sh
+```
+
+The hook installs RPINAS into `/opt/rpinas`, copies the default environment to `/etc/default/rpinas`, and enables the first-boot, network, Samba, and backend systemd units. After flashing, confirm the first boot by connecting to the `RPINAS` WiFi network and opening `http://192.168.4.1`.
+
 ## First Boot Flow
 
 1. Pi boots and runs first-boot service.

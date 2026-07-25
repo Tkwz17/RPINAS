@@ -4,7 +4,7 @@ set -euo pipefail
 ROOTFS="${ROOTFS:?ROOTFS must be set by rpi-image-gen}"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-install -d "$ROOTFS/opt/rpinas-src" "$ROOTFS/usr/local/bin" "$ROOTFS/etc/systemd/system"
+install -d "$ROOTFS/opt/rpinas-src" "$ROOTFS/usr/local/bin" "$ROOTFS/etc/systemd/system" "$ROOTFS/etc/default"
 rm -rf "$ROOTFS/opt/rpinas-src/backend"
 cp -a "$SRC_DIR/backend" "$ROOTFS/opt/rpinas-src/backend"
 
@@ -12,6 +12,7 @@ install -m 0755 "$SRC_DIR/scripts/first_boot.sh" "$ROOTFS/usr/local/bin/rpinas-f
 install -m 0755 "$SRC_DIR/scripts/network_setup.sh" "$ROOTFS/usr/local/bin/rpinas-network-setup"
 install -m 0755 "$SRC_DIR/scripts/samba_setup.sh" "$ROOTFS/usr/local/bin/rpinas-samba-setup"
 install -m 0755 "$SRC_DIR/scripts/install_backend.sh" "$ROOTFS/usr/local/bin/rpinas-install-backend"
+install -m 0644 "$SRC_DIR/rpi-image-gen/rpinas.env" "$ROOTFS/etc/default/rpinas"
 
 install -m 0644 "$SRC_DIR/systemd/rpinas-backend.service" "$ROOTFS/etc/systemd/system/rpinas-backend.service"
 install -m 0644 "$SRC_DIR/systemd/rpinas-firstboot.service" "$ROOTFS/etc/systemd/system/rpinas-firstboot.service"

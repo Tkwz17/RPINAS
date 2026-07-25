@@ -5,6 +5,7 @@ Requires=rpinas-network-setup.service rpinas-samba-setup.service
 ConditionPathExists=!/var/lib/rpinas/.first_boot_done
 
 [Service]
+EnvironmentFile=-/etc/default/rpinas
 Type=oneshot
 ExecStart=/usr/local/bin/rpinas-first-boot
 RemainAfterExit=yes
