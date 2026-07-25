@@ -5,6 +5,7 @@ import subprocess
 import time
 
 HOSTAPD_CONF = "/etc/hostapd/hostapd.conf"
+HOSTAPD_DEFAULT = "/etc/default/hostapd"
 DNSMASQ_CONF = "/etc/dnsmasq.d/rpinas.conf"
 NM_UNMANAGED_CONF = "/etc/NetworkManager/conf.d/rpinas-unmanaged.conf"
 WLAN_IFACE = "wlan0"
@@ -14,13 +15,20 @@ COUNTRY_CODE = os.environ.get("RPINAS_COUNTRY", "GB")
 # 802.11 SSIDs are at most 32 bytes; disallow control characters (in
 # particular newlines) so a crafted SSID can't inject extra directives
 # into hostapd.conf.
-SSID_PATTERN = re.compile(r"^[^\x00-\x1f\x7f]{1,32}$")
+SSID_PATTERN = re.compile(r"^[^\x00-\x1f\x7f]+$")
+COUNTRY_PATTERN = re.compile(r"^[A-Z]{2}$")
 
 
-def _validate_ssid(ssid: str) -> str:
-    if not SSID_PATTERN.fullmatch(ssid):
-        raise ValueError("SSID must be 1-32 characters with no control characters")
+def validate_ssid(ssid: str) -> str:
+    if not SSID_PATTERN.fullmatch(ssid) or len(ssid.encode("utf-8")) > 32:
+        raise ValueError("SSID must be 1-32 bytes with no control characters")
     return ssid
+
+
+def _validate_country_code(country_code: str) -> str:
+    if not COUNTRY_PATTERN.fullmatch(country_code):
+        raise ValueError("Country code must be two uppercase ASCII letters")
+    return country_code
 
 
 def _service_exists(name: str) -> bool:
@@ -58,8 +66,10 @@ def release_interface_from_network_stack() -> None:
 
 
 def configure_access_point(ssid: str, password: str | None = None) -> None:
-    ssid = _validate_ssid(ssid)
+    ssid = validate_ssid(ssid)
     channel = "6"
+    if password and len(password) < 8:
+        raise ValueError("WiFi password must be empty or at least 8 characters")
     if password:
         psk = hashlib.pbkdf2_hmac("sha1", password.encode("utf-8"), ssid.encode("utf-8"), 4096, 32).hex()
         wpa = f"""
@@ -73,7 +83,7 @@ rsn_pairwise=CCMP
 
     hostapd = f"""interface={WLAN_IFACE}
 driver=nl80211
-country_code={COUNTRY_CODE}
+country_code={_validate_country_code(COUNTRY_CODE)}
 ieee80211d=1
 ssid={ssid}
 hw_mode=g
@@ -92,6 +102,8 @@ address=/#/{AP_IP}
     with open(HOSTAPD_CONF, "w", encoding="utf-8") as f:
         f.write(hostapd)
     os.chmod(HOSTAPD_CONF, 0o600)
+    with open(HOSTAPD_DEFAULT, "w", encoding="utf-8") as f:
+        f.write(f'DAEMON_CONF="{HOSTAPD_CONF}"\n')
     with open(DNSMASQ_CONF, "w", encoding="utf-8") as f:
         f.write(dnsmasq)
 
