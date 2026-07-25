@@ -112,8 +112,10 @@ systemctl enable hostapd dnsmasq
 
 # Restart in the right order: hostapd needs to claim the interface before dnsmasq binds to it.
 systemctl restart hostapd
+systemctl is-active --quiet hostapd
 sleep 2
 systemctl restart dnsmasq
+systemctl is-active --quiet dnsmasq
 
 mkdir -p /var/lib/rpinas
 touch /var/lib/rpinas/.network_configured

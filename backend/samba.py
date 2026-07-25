@@ -86,5 +86,7 @@ def write_samba_config(storage_path: str, usernames: list[str], guest_enabled: b
 
 
 def apply_samba() -> None:
-    subprocess.run(["systemctl", "enable", "smbd", "nmbd"], check=False)
-    subprocess.run(["systemctl", "restart", "smbd", "nmbd"], check=False)
+    subprocess.run(["testparm", "-s", SAMBA_CONF], stdout=subprocess.DEVNULL, check=True)
+    subprocess.run(["systemctl", "enable", "smbd", "nmbd"], check=True)
+    subprocess.run(["systemctl", "restart", "smbd", "nmbd"], check=True)
+    subprocess.run(["systemctl", "is-active", "--quiet", "smbd"], check=True)

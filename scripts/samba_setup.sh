@@ -3,6 +3,7 @@ set -euo pipefail
 
 mkdir -p /srv/rpinas/NAS/Shared /srv/rpinas/NAS/Users
 chmod 777 /srv/rpinas/NAS/Shared
+mkdir -p /etc/samba
 
 cat >/etc/samba/smb.conf <<'CFG'
 [global]
@@ -24,8 +25,10 @@ cat >/etc/samba/smb.conf <<'CFG'
    directory mask = 0777
 CFG
 
+testparm -s /etc/samba/smb.conf >/dev/null
 systemctl enable smbd nmbd
 systemctl restart smbd nmbd
+systemctl is-active --quiet smbd
 
 mkdir -p /var/lib/rpinas
 touch /var/lib/rpinas/.samba_configured

@@ -110,11 +110,13 @@ address=/#/{AP_IP}
 
 def apply_network_services() -> None:
     subprocess.run(["systemctl", "unmask", "hostapd"], check=False)
-    subprocess.run(["systemctl", "enable", "hostapd", "dnsmasq"], check=False)
+    subprocess.run(["systemctl", "enable", "hostapd", "dnsmasq"], check=True)
     # hostapd must claim the interface before dnsmasq binds to it.
-    subprocess.run(["systemctl", "restart", "hostapd"], check=False)
+    subprocess.run(["systemctl", "restart", "hostapd"], check=True)
+    subprocess.run(["systemctl", "is-active", "--quiet", "hostapd"], check=True)
     time.sleep(2)
-    subprocess.run(["systemctl", "restart", "dnsmasq"], check=False)
+    subprocess.run(["systemctl", "restart", "dnsmasq"], check=True)
+    subprocess.run(["systemctl", "is-active", "--quiet", "dnsmasq"], check=True)
 
 
 def set_static_ap_address() -> None:
