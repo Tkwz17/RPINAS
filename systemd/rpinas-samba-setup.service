@@ -4,6 +4,7 @@ Before=smbd.service nmbd.service
 ConditionPathExists=!/var/lib/rpinas/.samba_configured
 
 [Service]
+EnvironmentFile=-/etc/default/rpinas
 Type=oneshot
 ExecStart=/usr/local/bin/rpinas-samba-setup
 RemainAfterExit=yes

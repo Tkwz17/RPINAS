@@ -4,6 +4,7 @@ After=rpinas-firstboot.service rpinas-network-setup.service rpinas-samba-setup.s
 Wants=rpinas-network-setup.service rpinas-samba-setup.service smbd.service
 
 [Service]
+EnvironmentFile=-/etc/default/rpinas
 Type=simple
 WorkingDirectory=/opt/rpinas
 Environment=RPINAS_DB_PATH=/var/lib/rpinas/rpinas.db
