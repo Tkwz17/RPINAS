@@ -24,24 +24,24 @@ jobs:
             apt-get update
             xargs -a rpi-image-gen/packages/rpinas.list apt-get install -y
 
-            install -d /opt/rpinas-src /usr/local/bin /etc/systemd/system
+            install -d /opt/rpinas-src /usr/local/bin /etc/systemd/system /etc/default
             cp -r backend /opt/rpinas-src/backend
 
             install -m 0755 scripts/first_boot.sh /usr/local/bin/rpinas-first-boot
             install -m 0755 scripts/network_setup.sh /usr/local/bin/rpinas-network-setup
             install -m 0755 scripts/samba_setup.sh /usr/local/bin/rpinas-samba-setup
             install -m 0755 scripts/install_backend.sh /usr/local/bin/rpinas-install-backend
+            install -m 0644 rpi-image-gen/rpinas.env /etc/default/rpinas
 
             install -m 0644 systemd/rpinas-backend.service /etc/systemd/system/rpinas-backend.service
             install -m 0644 systemd/rpinas-firstboot.service /etc/systemd/system/rpinas-firstboot.service
             install -m 0644 systemd/rpinas-network-setup.service /etc/systemd/system/rpinas-network-setup.service
             install -m 0644 systemd/rpinas-samba-setup.service /etc/systemd/system/rpinas-samba-setup.service
-            install -m 0644 systemd/rpinas-nas-management.service /etc/systemd/system/rpinas-nas-management.service
 
             /usr/local/bin/rpinas-install-backend
 
             systemctl enable rpinas-firstboot.service rpinas-network-setup.service \
-              rpinas-samba-setup.service rpinas-backend.service rpinas-nas-management.service
+              rpinas-samba-setup.service rpinas-backend.service
 
       - name: Compress and upload image
         run: |
