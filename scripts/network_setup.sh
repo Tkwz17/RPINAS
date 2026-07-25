@@ -5,8 +5,37 @@ set -euo pipefail
 RPINAS_SSID="${RPINAS_SSID:-RPINAS}"
 RPINAS_IP="${RPINAS_IP:-192.168.4.1}"
 RPINAS_COUNTRY="${RPINAS_COUNTRY:-GB}"
-RPINAS_PASSPHRASE="${RPINAS_PASSPHRASE:-rpinas1234}"
+RPINAS_PASSPHRASE="${RPINAS_PASSPHRASE:-}"
 WLAN_IFACE="wlan0"
+
+if [[ ! "${RPINAS_SSID}" =~ ^[^[:cntrl:]]{1,32}$ ]]; then
+    echo "RPINAS_SSID must be 1-32 characters with no control characters" >&2
+    exit 1
+fi
+
+if [[ ! "${RPINAS_COUNTRY}" =~ ^[A-Z]{2}$ ]]; then
+    echo "RPINAS_COUNTRY must be two uppercase ASCII letters" >&2
+    exit 1
+fi
+
+if [[ ! "${RPINAS_IP}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+    echo "RPINAS_IP must be an IPv4 address" >&2
+    exit 1
+fi
+IFS=. read -r ip_octet_1 ip_octet_2 ip_octet_3 ip_octet_4 <<<"${RPINAS_IP}"
+for octet in "${ip_octet_1}" "${ip_octet_2}" "${ip_octet_3}" "${ip_octet_4}"; do
+    if ((octet < 0 || octet > 255)); then
+        echo "RPINAS_IP octets must be between 0 and 255" >&2
+        exit 1
+    fi
+done
+
+if [[ -n "${RPINAS_PASSPHRASE}" ]]; then
+    if [[ ${#RPINAS_PASSPHRASE} -lt 8 || ${#RPINAS_PASSPHRASE} -gt 63 || "${RPINAS_PASSPHRASE}" =~ [[:cntrl:]] ]]; then
+        echo "RPINAS_PASSPHRASE must be empty for an open AP or 8-63 characters without control characters for WPA2" >&2
+        exit 1
+    fi
+fi
 
 # --- make sure the radio is actually usable ---
 rfkill unblock all || true
@@ -46,13 +75,24 @@ ieee80211d=1
 ssid=${RPINAS_SSID}
 hw_mode=g
 channel=6
-auth_algs=1
-ignore_broadcast_ssid=0
+macaddr_acl=0
+CFG
+
+if [[ -n "${RPINAS_PASSPHRASE}" ]]; then
+    cat >>/etc/hostapd/hostapd.conf <<CFG
 wpa=2
 wpa_passphrase=${RPINAS_PASSPHRASE}
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
 CFG
+else
+    cat >>/etc/hostapd/hostapd.conf <<CFG
+auth_algs=1
+ignore_broadcast_ssid=0
+CFG
+fi
+
+chmod 600 /etc/hostapd/hostapd.conf
 
 cat >/etc/default/hostapd <<CFG
 DAEMON_CONF="/etc/hostapd/hostapd.conf"

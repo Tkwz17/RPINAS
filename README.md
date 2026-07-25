@@ -123,3 +123,17 @@ Guest access never grants private user folder access.
 - Better SMB session analytics
 - Background jobs for long-running storage migrations
 - Optional OTA update workflow
+
+## rpi-image-gen Integration Details
+
+The `rpi-image-gen` directory contains the files needed to include RPINAS in an image build:
+
+- `rpi-image-gen/packages/rpinas.list` - packages that must be installed in the image.
+- `rpi-image-gen/build-hook.sh` - custom hook that copies RPINAS files into the target rootfs, installs the backend, and enables RPINAS services.
+- `rpi-image-gen/rpinas.env` - default image configuration values.
+
+Expected integration flow:
+
+1. Include `rpi-image-gen/packages/rpinas.list` in the image package manifest.
+2. Run `rpi-image-gen/build-hook.sh` as a custom hook after packages are installed and before image finalization.
+3. Build with the normal `rpi-image-gen` workflow.
