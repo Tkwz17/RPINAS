@@ -2,6 +2,7 @@ import hashlib
 import os
 import re
 import subprocess
+import time
 
 HOSTAPD_CONF = "/etc/hostapd/hostapd.conf"
 DNSMASQ_CONF = "/etc/dnsmasq.d/rpinas.conf"
@@ -100,6 +101,7 @@ def apply_network_services() -> None:
     subprocess.run(["systemctl", "enable", "hostapd", "dnsmasq"], check=False)
     # hostapd must claim the interface before dnsmasq binds to it.
     subprocess.run(["systemctl", "restart", "hostapd"], check=False)
+    time.sleep(2)
     subprocess.run(["systemctl", "restart", "dnsmasq"], check=False)
 
 
