@@ -239,7 +239,6 @@ def create_app() -> Flask:
         set_config("guest_enabled", guest_enabled)
         set_config("storage_path", selected_storage)
         set_config("storage_target", storage_target)
-        set_config("setup_complete", True)
 
         with get_conn() as conn:
             for entry in validated_users:
@@ -253,6 +252,7 @@ def create_app() -> Flask:
 
         _configure_nas_runtime(selected_storage, guest_enabled)
         _configure_wifi_runtime(get_config("wifi_ssid", "RPINAS"), get_config("wifi_password", "") or None)
+        set_config("setup_complete", True)
         log_event("setup_complete", {"users": [u["username"] for u in validated_users], "storage_path": selected_storage})
         return jsonify({"ok": True})
 

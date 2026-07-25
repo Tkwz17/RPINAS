@@ -144,8 +144,8 @@ const pages = {
           <thead><tr><th>Username</th><th>Created</th><th>Actions</th></tr></thead>
           <tbody>
             ${data.users.map(u => `<tr><td>${escapeHtml(u.username)}</td><td>${escapeHtml(u.created_at)}</td><td>
-              <button onclick="resetUser('${escapeHtml(u.username)}')">Reset Password</button>
-              <button onclick="deleteUser('${escapeHtml(u.username)}')">Remove</button>
+              <button class="reset-user-btn" data-username="${escapeHtml(u.username)}">Reset Password</button>
+              <button class="delete-user-btn" data-username="${escapeHtml(u.username)}">Remove</button>
             </td></tr>`).join('')}
           </tbody>
         </table>
@@ -159,6 +159,12 @@ const pages = {
       `)}
     `;
 
+    document.querySelectorAll('.reset-user-btn').forEach((button) => {
+      button.addEventListener('click', () => resetUser(button.dataset.username));
+    });
+    document.querySelectorAll('.delete-user-btn').forEach((button) => {
+      button.addEventListener('click', () => deleteUser(button.dataset.username));
+    });
     document.getElementById('addUserBtn').onclick = async () => {
       await api('/api/users', { method: 'POST', body: JSON.stringify({ username: document.getElementById('newUser').value, password: document.getElementById('newUserPass').value }) });
       pages.users();
