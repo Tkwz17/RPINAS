@@ -2,7 +2,7 @@ name: Build RPINAS Images
 
 on:
   push:
-    branches: [ MAIN ]
+    branches: [ main, MAIN ]
   workflow_dispatch: {}
 
 jobs:

@@ -2,6 +2,7 @@
 Description=RPINAS Network Setup
 Wants=hostapd.service dnsmasq.service
 Before=hostapd.service dnsmasq.service
+ConditionPathExists=!/var/lib/rpinas/.network_configured
 
 [Service]
 EnvironmentFile=-/etc/default/rpinas
