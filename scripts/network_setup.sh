@@ -8,8 +8,8 @@ RPINAS_COUNTRY="${RPINAS_COUNTRY:-GB}"
 RPINAS_PASSPHRASE="${RPINAS_PASSPHRASE:-}"
 WLAN_IFACE="wlan0"
 
-if [[ ! "${RPINAS_SSID}" =~ ^[^[:cntrl:]]{1,32}$ ]]; then
-    echo "RPINAS_SSID must be 1-32 characters with no control characters" >&2
+if [[ "${RPINAS_SSID}" =~ [[:cntrl:]] || ${#RPINAS_SSID} -eq 0 || $(printf %s "${RPINAS_SSID}" | wc -c) -gt 32 ]]; then
+    echo "RPINAS_SSID must be 1-32 bytes with no control characters" >&2
     exit 1
 fi
 
@@ -24,15 +24,17 @@ if [[ ! "${RPINAS_IP}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
 fi
 IFS=. read -r ip_octet_1 ip_octet_2 ip_octet_3 ip_octet_4 <<<"${RPINAS_IP}"
 for octet in "${ip_octet_1}" "${ip_octet_2}" "${ip_octet_3}" "${ip_octet_4}"; do
-    if ((octet < 0 || octet > 255)); then
+    octet_value=$((10#$octet))
+    if ((octet_value < 0 || octet_value > 255)); then
         echo "RPINAS_IP octets must be between 0 and 255" >&2
         exit 1
     fi
 done
 
 if [[ -n "${RPINAS_PASSPHRASE}" ]]; then
-    if [[ ${#RPINAS_PASSPHRASE} -lt 8 || ${#RPINAS_PASSPHRASE} -gt 63 || "${RPINAS_PASSPHRASE}" =~ [[:cntrl:]] ]]; then
-        echo "RPINAS_PASSPHRASE must be empty for an open AP or 8-63 characters without control characters for WPA2" >&2
+    passphrase_bytes=$(printf %s "${RPINAS_PASSPHRASE}" | wc -c)
+    if [[ ${passphrase_bytes} -lt 8 || ${passphrase_bytes} -gt 63 || "${RPINAS_PASSPHRASE}" =~ [[:cntrl:]] ]]; then
+        echo "RPINAS_PASSPHRASE must be empty for an open AP or 8-63 bytes without control characters for WPA2" >&2
         exit 1
     fi
 fi

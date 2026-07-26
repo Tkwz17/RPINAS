@@ -42,8 +42,12 @@ if ! fdisk -l "$output" | tee "$artifact_dir/$output.fdisk.txt"; then
   echo "fdisk could not read the generated image partition table" >&2
   exit 1
 fi
-if ! grep -Eq 'W95 FAT32|Linux' "$artifact_dir/$output.fdisk.txt"; then
-  echo "Image does not contain the expected Raspberry Pi boot/root partitions" >&2
+if ! grep -Eq 'Disklabel type: dos' "$artifact_dir/$output.fdisk.txt"; then
+  echo "Image does not use the expected Raspberry Pi MBR partition table" >&2
+  exit 1
+fi
+if ! grep -Eq 'W95 FAT32' "$artifact_dir/$output.fdisk.txt" || ! grep -Eq 'Linux' "$artifact_dir/$output.fdisk.txt"; then
+  echo "Image does not contain the expected Raspberry Pi boot FAT32 and Linux root partitions" >&2
   exit 1
 fi
 
@@ -52,7 +56,7 @@ fi
 # prefer compressed images, and verify that decompression recreates the exact
 # non-empty byte count.
 cp "$output" "$artifact_dir/$output"
-sha256sum "$artifact_dir/$output" > "$artifact_dir/$output.sha256"
+( cd "$artifact_dir" && sha256sum "$output" > "$output.sha256" && sha256sum -c "$output.sha256" )
 
 xz -0 -T 0 --check=crc64 --keep -v "$output"
 xz -t "$output.xz"
@@ -64,10 +68,18 @@ fi
 
 xz -dc "$output.xz" | cmp - "$output"
 mv "$output.xz" "$artifact_dir/"
-sha256sum "$artifact_dir/$output.xz" > "$artifact_dir/$output.xz.sha256"
+( cd "$artifact_dir" && sha256sum "$output.xz" > "$output.xz.sha256" && sha256sum -c "$output.xz.sha256" )
 
 artifact_image_bytes=$(stat -c '%s' "$artifact_dir/$output")
 if [ "$artifact_image_bytes" != "$image_bytes" ]; then
   echo "Artifact image size changed to ${artifact_image_bytes} bytes, expected ${image_bytes}" >&2
   exit 1
 fi
+
+cat > "$artifact_dir/README.txt" <<EOF
+RPINAS image artifact
+
+Flash $output to a Raspberry Pi SD card or USB boot device after downloading and unzipping this artifact.
+$output.xz is the verified compressed copy of the same raw image.
+Use sha256sum -c *.sha256 to verify downloaded files before flashing.
+EOF

@@ -79,3 +79,22 @@ def test_image_workflow_uploads_verified_artifact_directory():
     assert ".fdisk.txt" in packager
     assert 'cp "$output" "$artifact_dir/$output"' in packager
     assert 'Output image must end in .img' in packager
+
+
+def test_network_setup_validates_hostapd_byte_limits_and_decimal_ip_octets():
+    script = (REPO_ROOT / "scripts" / "network_setup.sh").read_text(encoding="utf-8")
+
+    assert "1-32 bytes" in script
+    assert 'printf %s "${RPINAS_SSID}" | wc -c' in script
+    assert "8-63 bytes" in script
+    assert "octet_value=$((10#$octet))" in script
+
+
+def test_image_packaging_verifies_boot_and_root_partitions_and_artifact_checksums():
+    packager = (REPO_ROOT / "ci" / "package-image.sh").read_text(encoding="utf-8")
+
+    assert "Disklabel type: dos" in packager
+    assert "boot FAT32 and Linux root partitions" in packager
+    assert 'sha256sum -c "$output.sha256"' in packager
+    assert 'sha256sum -c "$output.xz.sha256"' in packager
+    assert 'Flash $output' in packager
