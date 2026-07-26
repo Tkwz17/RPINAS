@@ -42,8 +42,9 @@ def test_model_env_files_include_device_hardware_profiles():
 def test_image_workflow_verifies_non_empty_model_images_before_upload():
     workflow = (REPO_ROOT / ".github/workflows/build-image.yml").read_text(encoding="utf-8")
 
-    assert "cp --sparse=never" in workflow
+    assert 'dd if="$src" of="$output"' in workflow
     assert "Image is unexpectedly small" in workflow
+    assert "fdisk -l" in workflow
     assert "xz -t" in workflow
     assert ".xz.sha256" in workflow
 
@@ -57,3 +58,18 @@ def test_image_workflow_uses_model_specific_emulated_cpus():
     assert "cpu_info: cpuinfo/raspberrypi_4b" in workflow
     assert "cpu: cortex-a76" in workflow
     assert "cpu_info: cpuinfo/raspberrypi_5" in workflow
+
+
+def test_image_workflow_pins_runner_and_arm_runner_action_versions():
+    workflow = (REPO_ROOT / ".github/workflows/build-image.yml").read_text(encoding="utf-8")
+
+    assert "runs-on: ubuntu-24.04" in workflow
+    assert "pguyot/arm-runner-action@v2.6.5" in workflow
+
+
+def test_image_workflow_uploads_verified_artifact_directory():
+    workflow = (REPO_ROOT / ".github/workflows/build-image.yml").read_text(encoding="utf-8")
+
+    assert 'artifact_dir="dist/${{ matrix.model.artifact }}"' in workflow
+    assert "path: dist/${{ matrix.model.artifact }}/" in workflow
+    assert ".fdisk.txt" in workflow
