@@ -4,7 +4,7 @@ RPINAS builds a Raspberry Pi OS Lite image that turns a Raspberry Pi into a smal
 
 ## Current Status
 
-This repository contains the application, runtime setup scripts, systemd units, and GitHub Actions image build workflow. It does **not** use upstream `rpi-image-gen` directly in CI; the workflow customizes official Raspberry Pi OS Lite images with `pguyot/arm-runner-action` and uploads compressed `.img.xz` artifacts.
+This repository contains the application, runtime setup scripts, systemd units, and GitHub Actions image build workflow. It does **not** use upstream `rpi-image-gen` directly in CI; the workflow customizes official Raspberry Pi OS Lite images with `pguyot/arm-runner-action` and uploads artifacts that unzip to a raw, flashable `.img` file, with a verified `.img.xz` copy and SHA-256 checksums.
 
 ## What the Image Provides
 
@@ -54,7 +54,7 @@ For each model, the workflow:
 4. Appends model-specific boot tuning to the image boot config, such as Pi 3 32-bit mode, Pi 4 64-bit headless tuning, or Pi 5 PCIe enablement for NVMe/HAT storage.
 5. Runs `rpinas-install-backend` inside the image to create `/opt/rpinas/.venv` and install backend Python dependencies.
 6. Enables RPINAS systemd services.
-7. Compresses and uploads the resulting image as an `.img.xz` artifact.
+7. Copies the resulting raw `.img` into the artifact so downloading and unzipping the GitHub artifact yields a flashable OS image file, then also creates and verifies a matching `.img.xz` copy and SHA-256 checksums.
 
 This repository intentionally does **not** commit generated image files.
 
@@ -72,7 +72,7 @@ The hook expects `ROOTFS` to point at a prepared Raspberry Pi OS root filesystem
 
 ## First Boot Flow
 
-1. Flash a generated `.img.xz` artifact with Raspberry Pi Imager or another imaging tool.
+1. Download and unzip a generated GitHub Actions artifact, then flash the raw `.img` file inside it with Raspberry Pi Imager or another imaging tool. The artifact also includes a verified `.img.xz` copy for tools that prefer compressed images.
 2. Boot the Pi.
 3. The image configures `wlan0` as an AP using `/etc/default/rpinas` values.
 4. Connect to the model-specific SSID.

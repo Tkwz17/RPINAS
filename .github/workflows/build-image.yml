@@ -115,41 +115,7 @@ jobs:
           min_bytes="${{ matrix.model.min_image_bytes }}"
           artifact_dir="dist/${{ matrix.model.artifact }}"
 
-          if [ -z "$src" ] || [ ! -f "$src" ] || [ ! -s "$src" ]; then
-            echo "arm-runner-action did not produce a non-empty image at: $src" >&2
-            exit 1
-          fi
-
-          install -d "$artifact_dir"
-
-          # Re-materialize the raw image without sparse holes before compression.
-          # Sparse files can be misreported as empty or truncated by downstream tools
-          # once they have been zipped/downloaded as GitHub Actions artifacts.
-          dd if="$src" of="$output" bs=16M status=progress conv=fsync
-
-          image_bytes=$(stat -c '%s' "$output")
-          if [ "$image_bytes" -lt "$min_bytes" ]; then
-            echo "Image is unexpectedly small: ${image_bytes} bytes (minimum ${min_bytes})" >&2
-            exit 1
-          fi
-
-          fdisk -l "$output" | tee "$artifact_dir/$output.fdisk.txt"
-          if ! fdisk -l "$output" | grep -q 'W95 FAT32\|Linux'; then
-            echo "Image does not contain the expected Raspberry Pi partition table" >&2
-            exit 1
-          fi
-
-          xz -0 -T 0 --check=crc64 --keep -v "$output"
-          xz -t "$output.xz"
-
-          uncompressed_bytes=$(xz --robot --list "$output.xz" | awk -F'\t' '$1 == "totals" { print $5 }')
-          if [ "$uncompressed_bytes" != "$image_bytes" ]; then
-            echo "Compressed image expands to ${uncompressed_bytes} bytes, expected ${image_bytes}" >&2
-            exit 1
-          fi
-
-          mv "$output.xz" "$artifact_dir/"
-          sha256sum "$artifact_dir/$output.xz" > "$artifact_dir/$output.xz.sha256"
+          ci/package-image.sh "$src" "$output" "$min_bytes" "$artifact_dir"
 
       - name: Upload image
         uses: actions/upload-artifact@v4

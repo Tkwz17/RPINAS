@@ -39,14 +39,17 @@ def test_model_env_files_include_device_hardware_profiles():
             assert marker in env_text
 
 
-def test_image_workflow_verifies_non_empty_model_images_before_upload():
+def test_image_packaging_script_verifies_non_empty_model_images_before_upload():
     workflow = (REPO_ROOT / ".github/workflows/build-image.yml").read_text(encoding="utf-8")
+    packager = (REPO_ROOT / "ci/package-image.sh").read_text(encoding="utf-8")
 
-    assert 'dd if="$src" of="$output"' in workflow
-    assert "Image is unexpectedly small" in workflow
-    assert "fdisk -l" in workflow
-    assert "xz -t" in workflow
-    assert ".xz.sha256" in workflow
+    assert 'ci/package-image.sh "$src" "$output" "$min_bytes" "$artifact_dir"' in workflow
+    assert 'dd if="$src" of="$output"' in packager
+    assert "Image is unexpectedly small" in packager
+    assert "fdisk -l" in packager
+    assert "xz -t" in packager
+    assert "xz -dc" in packager
+    assert ".xz.sha256" in packager
 
 
 def test_image_workflow_uses_model_specific_emulated_cpus():
@@ -69,7 +72,10 @@ def test_image_workflow_pins_runner_and_arm_runner_action_versions():
 
 def test_image_workflow_uploads_verified_artifact_directory():
     workflow = (REPO_ROOT / ".github/workflows/build-image.yml").read_text(encoding="utf-8")
+    packager = (REPO_ROOT / "ci/package-image.sh").read_text(encoding="utf-8")
 
     assert 'artifact_dir="dist/${{ matrix.model.artifact }}"' in workflow
     assert "path: dist/${{ matrix.model.artifact }}/" in workflow
-    assert ".fdisk.txt" in workflow
+    assert ".fdisk.txt" in packager
+    assert 'cp "$output" "$artifact_dir/$output"' in packager
+    assert 'Output image must end in .img' in packager
