@@ -9,8 +9,8 @@ HOSTAPD_DEFAULT = "/etc/default/hostapd"
 DNSMASQ_CONF = "/etc/dnsmasq.d/rpinas.conf"
 NM_UNMANAGED_CONF = "/etc/NetworkManager/conf.d/rpinas-unmanaged.conf"
 WLAN_IFACE = "wlan0"
-AP_IP = "192.168.4.1"
-COUNTRY_CODE = os.environ.get("RPINAS_COUNTRY", "GB")
+DEFAULT_AP_IP = "192.168.4.1"
+DEFAULT_COUNTRY_CODE = "GB"
 
 # 802.11 SSIDs are at most 32 bytes; disallow control characters (in
 # particular newlines) so a crafted SSID can't inject extra directives
@@ -23,6 +23,19 @@ def validate_ssid(ssid: str) -> str:
     if not SSID_PATTERN.fullmatch(ssid) or len(ssid.encode("utf-8")) > 32:
         raise ValueError("SSID must be 1-32 bytes with no control characters")
     return ssid
+
+
+def _validate_ipv4_address(address: str) -> str:
+    parts = address.split(".")
+    if len(parts) != 4:
+        raise ValueError("AP IP must be an IPv4 address")
+    for part in parts:
+        if not part.isdigit():
+            raise ValueError("AP IP must be an IPv4 address")
+        value = int(part, 10)
+        if value < 0 or value > 255:
+            raise ValueError("AP IP octets must be between 0 and 255")
+    return address
 
 
 def _validate_country_code(country_code: str) -> str:
@@ -83,7 +96,7 @@ rsn_pairwise=CCMP
 
     hostapd = f"""interface={WLAN_IFACE}
 driver=nl80211
-country_code={_validate_country_code(COUNTRY_CODE)}
+country_code={_validate_country_code(os.environ.get("RPINAS_COUNTRY", DEFAULT_COUNTRY_CODE))}
 ieee80211d=1
 ssid={ssid}
 hw_mode=g
@@ -91,10 +104,12 @@ channel={channel}
 macaddr_acl=0
 {wpa.strip()}\n"""
 
+    ap_ip = _validate_ipv4_address(os.environ.get("RPINAS_IP", DEFAULT_AP_IP))
+    dhcp_prefix = ".".join(ap_ip.split(".")[:3])
     dnsmasq = f"""interface={WLAN_IFACE}
 bind-interfaces
-dhcp-range=192.168.4.10,192.168.4.200,255.255.255.0,24h
-address=/#/{AP_IP}
+dhcp-range={dhcp_prefix}.10,{dhcp_prefix}.200,255.255.255.0,24h
+address=/#/{ap_ip}
 """
 
     os.makedirs(os.path.dirname(DNSMASQ_CONF), exist_ok=True)
@@ -128,4 +143,5 @@ def set_static_ap_address() -> None:
     subprocess.run(["ip", "link", "set", WLAN_IFACE, "down"], check=False)
     subprocess.run(["ip", "addr", "flush", "dev", WLAN_IFACE], check=False)
     subprocess.run(["ip", "link", "set", WLAN_IFACE, "up"], check=False)
-    subprocess.run(["ip", "addr", "add", f"{AP_IP}/24", "dev", WLAN_IFACE], check=False)
+    ap_ip = _validate_ipv4_address(os.environ.get("RPINAS_IP", DEFAULT_AP_IP))
+    subprocess.run(["ip", "addr", "add", f"{ap_ip}/24", "dev", WLAN_IFACE], check=False)

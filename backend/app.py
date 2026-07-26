@@ -233,7 +233,7 @@ def create_app() -> Flask:
             if not username or not password:
                 return jsonify({"error": "Each user requires username and password"}), 400
             if not _valid_username(username):
-                return jsonify({"error": "Usernames may only contain letters, numbers, '.', '_' and '-'"}), 400
+                return jsonify({"error": "Usernames must start with a lowercase letter or underscore and contain only lowercase letters, numbers, underscores, or hyphens (max 32 characters)"}), 400
             if username in seen:
                 return jsonify({"error": "Duplicate usernames are not allowed"}), 400
             seen.add(username)
@@ -330,7 +330,7 @@ def create_app() -> Flask:
         if not username or not password:
             return jsonify({"error": "Username and password are required"}), 400
         if not _valid_username(username):
-            return jsonify({"error": "Usernames may only contain letters, numbers, '.', '_' and '-'"}), 400
+            return jsonify({"error": "Usernames must start with a lowercase letter or underscore and contain only lowercase letters, numbers, underscores, or hyphens (max 32 characters)"}), 400
 
         with get_conn() as conn:
             exists = conn.execute("SELECT username FROM nas_users WHERE username = ?", (username,)).fetchone()
@@ -390,7 +390,7 @@ def create_app() -> Flask:
     @app.get("/api/network")
     @require_auth
     def network_get() -> Any:
-        return jsonify({"ssid": get_config("wifi_ssid", "RPINAS"), "password_set": bool(get_config("wifi_password", ""))})
+        return jsonify({"ssid": get_config("wifi_ssid", "RPINAS"), "password_set": bool(get_config("wifi_password", "")), "ip": os.environ.get("RPINAS_IP", "192.168.4.1")})
 
     @app.post("/api/network")
     @require_auth

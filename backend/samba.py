@@ -4,7 +4,7 @@ import re
 import subprocess
 
 SAMBA_CONF = "/etc/samba/smb.conf"
-USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
+USERNAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 
 
 def _validate_username(username: str) -> str:
@@ -24,7 +24,7 @@ def _system_user_exists(username: str) -> bool:
 def ensure_system_user(username: str) -> None:
     username = _validate_username(username)
     if not _system_user_exists(username):
-        subprocess.run(["useradd", "-M", "-s", "/usr/sbin/nologin", username], check=False)
+        subprocess.run(["useradd", "-M", "-s", "/usr/sbin/nologin", username], check=True)
 
 
 def set_samba_password(username: str, password: str) -> None:
@@ -34,7 +34,7 @@ def set_samba_password(username: str, password: str) -> None:
     # string, so passwords containing quotes/special characters can't break
     # or inject into the command.
     stdin_data = f"{password}\n{password}\n"
-    subprocess.run(["smbpasswd", "-a", "-s", username], input=stdin_data, text=True, check=False)
+    subprocess.run(["smbpasswd", "-a", "-s", username], input=stdin_data, text=True, check=True)
 
 
 def delete_samba_user(username: str) -> None:
