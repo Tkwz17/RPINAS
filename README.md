@@ -28,9 +28,9 @@ This repository contains the application, runtime setup scripts, systemd units, 
 
 | Target | Architecture | Default SSID | Profile | Storage notes |
 | --- | --- | --- | --- | --- |
-| Raspberry Pi 3 | armhf | `RPINAS-Pi3` | low-memory | USB 2.0 limits storage/network throughput. |
-| Raspberry Pi 4 | arm64 | `RPINAS-Pi4` | balanced | USB 3.0 storage support. |
-| Raspberry Pi 5 | arm64 | `RPINAS-Pi5` | performance | USB 3.0 and optional PCIe/NVMe storage support. |
+| Raspberry Pi 3 | armhf / BCM2837 / 32-bit boot | `RPINAS-Pi3` | low-memory | Minimal GPU memory, Bluetooth disabled, USB 2.0 storage/network limits expected. |
+| Raspberry Pi 4 | arm64 / BCM2711 / 64-bit boot | `RPINAS-Pi4` | balanced | Minimal GPU memory, Bluetooth disabled, USB 3.0 storage support. |
+| Raspberry Pi 5 | arm64 / BCM2712 / 64-bit boot | `RPINAS-Pi5` | performance | Minimal GPU memory, PCIe enabled for NVMe/HAT storage, USB 3.0 support. |
 
 Other Raspberry Pi models may work if the base OS has compatible WiFi, enough storage, and suitable package support, but only the targets above are represented in the included workflow matrix.
 
@@ -51,9 +51,10 @@ For each model, the workflow:
 1. Boots a Raspberry Pi OS Lite base image under `pguyot/arm-runner-action`.
 2. Installs packages listed in `rpi-image-gen/packages/rpinas.list`.
 3. Copies the backend, setup scripts, selected model environment file, and systemd units into the image.
-4. Runs `rpinas-install-backend` inside the image to create `/opt/rpinas/.venv` and install backend Python dependencies.
-5. Enables RPINAS systemd services.
-6. Compresses and uploads the resulting image as an `.img.xz` artifact.
+4. Appends model-specific boot tuning to the image boot config, such as Pi 3 32-bit mode, Pi 4 64-bit headless tuning, or Pi 5 PCIe enablement for NVMe/HAT storage.
+5. Runs `rpinas-install-backend` inside the image to create `/opt/rpinas/.venv` and install backend Python dependencies.
+6. Enables RPINAS systemd services.
+7. Compresses and uploads the resulting image as an `.img.xz` artifact.
 
 This repository intentionally does **not** commit generated image files.
 

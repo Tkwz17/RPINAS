@@ -19,18 +19,39 @@ jobs:
             base_image: https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2024-11-19/2024-11-19-raspios-bookworm-armhf-lite.img.xz
             env_file: rpi-image-gen/rpinas-pi3.env
             image_additional_mb: 768
+            boot_config: |
+              # RPINAS Pi 3 tuning: 32-bit userspace, minimal GPU memory, NAS-focused radios.
+              [pi3]
+              arm_64bit=0
+              gpu_mem=16
+              dtoverlay=disable-bt
+              [all]
           - name: Raspberry Pi 4
             artifact: rpinas-raspberry-pi-4-bookworm-image
             output: rpinas-raspberry-pi-4-bookworm.img
             base_image: https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-11-19/2024-11-19-raspios-bookworm-arm64-lite.img.xz
             env_file: rpi-image-gen/rpinas-pi4.env
             image_additional_mb: 1024
+            boot_config: |
+              # RPINAS Pi 4 tuning: 64-bit userspace with low GPU memory for headless NAS use.
+              [pi4]
+              arm_64bit=1
+              gpu_mem=32
+              dtoverlay=disable-bt
+              [all]
           - name: Raspberry Pi 5
             artifact: rpinas-raspberry-pi-5-bookworm-image
             output: rpinas-raspberry-pi-5-bookworm.img
             base_image: https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-11-19/2024-11-19-raspios-bookworm-arm64-lite.img.xz
             env_file: rpi-image-gen/rpinas-pi5.env
             image_additional_mb: 1536
+            boot_config: |
+              # RPINAS Pi 5 tuning: 64-bit userspace, low GPU memory, and PCIe enabled for NVMe/HAT storage.
+              [pi5]
+              arm_64bit=1
+              gpu_mem=32
+              dtparam=pciex1
+              [all]
     steps:
       - name: Checkout RPINAS repo
         uses: actions/checkout@v4
@@ -60,6 +81,14 @@ jobs:
             install -m 0644 systemd/rpinas-firstboot.service /etc/systemd/system/rpinas-firstboot.service
             install -m 0644 systemd/rpinas-network-setup.service /etc/systemd/system/rpinas-network-setup.service
             install -m 0644 systemd/rpinas-samba-setup.service /etc/systemd/system/rpinas-samba-setup.service
+
+            boot_config_path=/boot/firmware/config.txt
+            if [ ! -f "$boot_config_path" ]; then
+              boot_config_path=/boot/config.txt
+            fi
+            cat >> "$boot_config_path" <<'RPINAS_BOOT_CONFIG'
+            ${{ matrix.model.boot_config }}
+            RPINAS_BOOT_CONFIG
 
             /usr/local/bin/rpinas-install-backend
 

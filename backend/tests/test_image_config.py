@@ -14,3 +14,26 @@ def test_network_setup_service_only_runs_until_configured_marker_exists():
     unit = (REPO_ROOT / "systemd/rpinas-network-setup.service").read_text(encoding="utf-8")
 
     assert "ConditionPathExists=!/var/lib/rpinas/.network_configured" in unit
+
+
+def test_image_workflow_uses_model_specific_boot_tuning():
+    workflow = (REPO_ROOT / ".github/workflows/build-image.yml").read_text(encoding="utf-8")
+
+    assert "[pi3]" in workflow
+    assert "arm_64bit=0" in workflow
+    assert "[pi4]" in workflow
+    assert "[pi5]" in workflow
+    assert "dtparam=pciex1" in workflow
+
+
+def test_model_env_files_include_device_hardware_profiles():
+    expected = {
+        "rpinas-pi3.env": ("RPINAS_BOARD=pi3", "RPINAS_SOC=BCM2837", "RPINAS_PRIMARY_STORAGE_BUS=USB2"),
+        "rpinas-pi4.env": ("RPINAS_BOARD=pi4", "RPINAS_SOC=BCM2711", "RPINAS_PRIMARY_STORAGE_BUS=USB3"),
+        "rpinas-pi5.env": ("RPINAS_BOARD=pi5", "RPINAS_SOC=BCM2712", "RPINAS_PCIE=enabled"),
+    }
+
+    for filename, markers in expected.items():
+        env_text = (REPO_ROOT / "rpi-image-gen" / filename).read_text(encoding="utf-8")
+        for marker in markers:
+            assert marker in env_text
