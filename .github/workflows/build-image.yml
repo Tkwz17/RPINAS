@@ -1,13 +1,36 @@
-name: Build RPINAS Image
+name: Build RPINAS Images
 
 on:
   push:
-    branches: [ main ]
+    branches: [ MAIN ]
   workflow_dispatch: {}
 
 jobs:
   build:
+    name: Build ${{ matrix.model.name }} image
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        model:
+          - name: Raspberry Pi 3
+            artifact: rpinas-raspberry-pi-3-bookworm-image
+            output: rpinas-raspberry-pi-3-bookworm.img
+            base_image: https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2024-11-19/2024-11-19-raspios-bookworm-armhf-lite.img.xz
+            env_file: rpi-image-gen/rpinas-pi3.env
+            image_additional_mb: 768
+          - name: Raspberry Pi 4
+            artifact: rpinas-raspberry-pi-4-bookworm-image
+            output: rpinas-raspberry-pi-4-bookworm.img
+            base_image: https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-11-19/2024-11-19-raspios-bookworm-arm64-lite.img.xz
+            env_file: rpi-image-gen/rpinas-pi4.env
+            image_additional_mb: 1024
+          - name: Raspberry Pi 5
+            artifact: rpinas-raspberry-pi-5-bookworm-image
+            output: rpinas-raspberry-pi-5-bookworm.img
+            base_image: https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-11-19/2024-11-19-raspios-bookworm-arm64-lite.img.xz
+            env_file: rpi-image-gen/rpinas-pi5.env
+            image_additional_mb: 1536
     steps:
       - name: Checkout RPINAS repo
         uses: actions/checkout@v4
@@ -16,13 +39,13 @@ jobs:
         id: build_image
         uses: pguyot/arm-runner-action@v2
         with:
-          base_image: https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-11-19/2024-11-19-raspios-bookworm-arm64-lite.img.xz
-          image_additional_mb: 1024
+          base_image: ${{ matrix.model.base_image }}
+          image_additional_mb: ${{ matrix.model.image_additional_mb }}
           commands: |
             set -eu
 
             apt-get update
-            xargs -a rpi-image-gen/packages/rpinas.list apt-get install -y
+            xargs -r -a rpi-image-gen/packages/rpinas.list apt-get install -y
 
             install -d /opt/rpinas-src /usr/local/bin /etc/systemd/system /etc/default
             cp -r backend /opt/rpinas-src/backend
@@ -31,7 +54,7 @@ jobs:
             install -m 0755 scripts/network_setup.sh /usr/local/bin/rpinas-network-setup
             install -m 0755 scripts/samba_setup.sh /usr/local/bin/rpinas-samba-setup
             install -m 0755 scripts/install_backend.sh /usr/local/bin/rpinas-install-backend
-            install -m 0644 rpi-image-gen/rpinas.env /etc/default/rpinas
+            install -m 0644 "${{ matrix.model.env_file }}" /etc/default/rpinas
 
             install -m 0644 systemd/rpinas-backend.service /etc/systemd/system/rpinas-backend.service
             install -m 0644 systemd/rpinas-firstboot.service /etc/systemd/system/rpinas-firstboot.service
@@ -43,13 +66,15 @@ jobs:
             systemctl enable rpinas-firstboot.service rpinas-network-setup.service \
               rpinas-samba-setup.service rpinas-backend.service
 
-      - name: Compress and upload image
+      - name: Compress image
         run: |
-          mv "${{ steps.build_image.outputs.image }}" rpinas-bookworm.img
-          xz -0 -T 0 -v rpinas-bookworm.img
+          set -eu
+          mv "${{ steps.build_image.outputs.image }}" "${{ matrix.model.output }}"
+          xz -0 -T 0 -v "${{ matrix.model.output }}"
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload image
+        uses: actions/upload-artifact@v4
         with:
-          name: rpinas-bookworm-image
-          path: rpinas-bookworm.img.xz
+          name: ${{ matrix.model.artifact }}
+          path: ${{ matrix.model.output }}.xz
           if-no-files-found: error

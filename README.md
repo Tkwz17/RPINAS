@@ -27,11 +27,11 @@ RPINAS is a Raspberry Pi NAS appliance project that builds a ready-to-flash syst
 
 ## Supported Raspberry Pi Models
 
-- Raspberry Pi 3B+
-- Raspberry Pi 4
-- Raspberry Pi 5
+- Raspberry Pi 3B+ (`RPINAS-Pi3`, 32-bit armhf, low-memory profile, USB 2.0 throughput expectations)
+- Raspberry Pi 4 (`RPINAS-Pi4`, 64-bit arm64, balanced profile, USB 3.0 storage support)
+- Raspberry Pi 5 (`RPINAS-Pi5`, 64-bit arm64, performance profile, USB 3.0 plus optional PCIe/NVMe storage support)
 
-(Any model with supported Linux image, onboard/compatible WiFi, and enough storage can work.)
+The GitHub Actions image workflow produces one artifact per model so each image carries defaults that match what that Raspberry Pi can and cannot do. Any other model with a supported Linux image, onboard/compatible WiFi, and enough storage may work with a custom environment file.
 
 ## Repository Layout
 
@@ -51,11 +51,16 @@ RPINAS is a Raspberry Pi NAS appliance project that builds a ready-to-flash syst
 1. Install and configure `rpi-image-gen` in your build environment.
 2. Include package list from:
    - `rpi-image-gen/packages/rpinas.list`
-3. Register and run custom hook:
-   - `rpi-image-gen/build-hook.sh`
-4. Build image with your normal `rpi-image-gen` pipeline.
-5. Flash output image using Raspberry Pi Imager.
-6. Insert SD card in Pi and boot.
+3. Choose a model-specific environment file, or keep the balanced default:
+   - `rpi-image-gen/rpinas-pi3.env`
+   - `rpi-image-gen/rpinas-pi4.env`
+   - `rpi-image-gen/rpinas-pi5.env`
+   - `rpi-image-gen/rpinas.env` (default Pi 4 balanced profile)
+4. Register and run custom hook:
+   - `RPINAS_ENV_FILE=/path/to/env rpi-image-gen/build-hook.sh`
+5. Build image with your normal `rpi-image-gen` pipeline.
+6. Flash output image using Raspberry Pi Imager.
+7. Insert SD card in Pi and boot.
 
 > This repository intentionally does **not** generate or commit the final `.img` file.
 
@@ -73,16 +78,16 @@ bash -n scripts/*.sh rpi-image-gen/build-hook.sh
 To smoke-test the image hook without producing a final `.img`, run it against an already-prepared `rpi-image-gen` root filesystem that contains the packages from `rpi-image-gen/packages/rpinas.list`:
 
 ```bash
-ROOTFS=/path/to/rpi-image-gen/rootfs ./rpi-image-gen/build-hook.sh
+ROOTFS=/path/to/rpi-image-gen/rootfs RPINAS_ENV_FILE=rpi-image-gen/rpinas-pi5.env ./rpi-image-gen/build-hook.sh
 ```
 
-The hook installs RPINAS into `/opt/rpinas`, copies the default environment to `/etc/default/rpinas`, and enables the first-boot, network, Samba, and backend systemd units. After flashing, confirm the first boot by connecting to the `RPINAS` WiFi network and opening `http://192.168.4.1`.
+The hook installs RPINAS into `/opt/rpinas`, copies the selected environment to `/etc/default/rpinas`, and enables the first-boot, network, Samba, and backend systemd units. After flashing, confirm the first boot by connecting to the image-specific WiFi network, such as `RPINAS-Pi3`, `RPINAS-Pi4`, or `RPINAS-Pi5`, and opening `http://192.168.4.1`.
 
 ## First Boot Flow
 
 1. Pi boots and runs first-boot service.
 2. RPINAS configures AP/network services and Samba base config.
-3. Connect a client device to WiFi SSID `RPINAS`.
+3. Connect a client device to the model-specific WiFi SSID, such as `RPINAS-Pi3`, `RPINAS-Pi4`, or `RPINAS-Pi5`.
 4. Open `http://192.168.4.1`.
 5. Complete setup wizard.
 6. Sign in to admin dashboard.
@@ -149,10 +154,14 @@ The `rpi-image-gen` directory contains the files needed to include RPINAS in an 
 
 - `rpi-image-gen/packages/rpinas.list` - packages that must be installed in the image.
 - `rpi-image-gen/build-hook.sh` - custom hook that copies RPINAS files into the target rootfs, installs the backend, and enables RPINAS services.
-- `rpi-image-gen/rpinas.env` - default image configuration values.
+- `rpi-image-gen/rpinas.env` - default Pi 4 balanced image configuration values.
+- `rpi-image-gen/rpinas-pi3.env`, `rpi-image-gen/rpinas-pi4.env`, and `rpi-image-gen/rpinas-pi5.env` - model-specific image defaults used by CI.
 
 Expected integration flow:
 
 1. Include `rpi-image-gen/packages/rpinas.list` in the image package manifest.
-2. Run `rpi-image-gen/build-hook.sh` as a custom hook after packages are installed and before image finalization.
-3. Build with the normal `rpi-image-gen` workflow.
+2. Set `RPINAS_ENV_FILE` to the model-specific defaults you want baked into the image.
+3. Run `rpi-image-gen/build-hook.sh` as a custom hook after packages are installed and before image finalization.
+4. Build with the normal `rpi-image-gen` workflow.
+
+The repository GitHub Actions workflow runs the same install path three times: a Raspberry Pi 3 armhf/low-memory image, a Raspberry Pi 4 arm64/balanced image, and a Raspberry Pi 5 arm64/performance image.
