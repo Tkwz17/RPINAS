@@ -50,3 +50,22 @@ def test_configure_access_point_writes_wpa_psk(monkeypatch, tmp_path):
     assert "wpa=2" in hostapd
     assert "wpa_psk=" in hostapd
     assert "wpa_passphrase=" not in hostapd
+
+
+def test_configure_access_point_uses_env_ap_ip(monkeypatch, tmp_path):
+    _, _, dnsmasq_conf = _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setenv("RPINAS_IP", "10.42.0.1")
+
+    network.configure_access_point("RPINAS")
+
+    dnsmasq = dnsmasq_conf.read_text(encoding="utf-8")
+    assert "dhcp-range=10.42.0.10,10.42.0.200,255.255.255.0,24h" in dnsmasq
+    assert "address=/#/10.42.0.1" in dnsmasq
+
+
+def test_configure_access_point_rejects_invalid_env_ap_ip(monkeypatch, tmp_path):
+    _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setenv("RPINAS_IP", "999.42.0.1")
+
+    with pytest.raises(ValueError, match="octets"):
+        network.configure_access_point("RPINAS")

@@ -8,7 +8,7 @@ from typing import Any
 
 DEFAULT_STORAGE_PATH = "/srv/rpinas/NAS"
 ALLOWED_STORAGE_ROOTS = ("/srv/rpinas", "/media", "/mnt", "/run/media")
-USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
+USERNAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 
 
 @dataclass
@@ -96,7 +96,7 @@ def migrate_storage(old_path: str, new_path: str) -> None:
     if old_path == new_path or not os.path.isdir(old_path):
         return
     os.makedirs(new_path, exist_ok=True)  # codeql[py/path-injection]
-    subprocess.run(["rsync", "-a", f"{old_path}/", f"{new_path}/"], check=False)
+    subprocess.run(["rsync", "-a", f"{old_path}/", f"{new_path}/"], check=True)
 
 
 def disk_usage(path: str) -> dict[str, Any]:

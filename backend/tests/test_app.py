@@ -65,3 +65,18 @@ def test_setup_does_not_mark_complete_when_runtime_configuration_fails(client, m
     response = client.get("/api/status")
     assert response.status_code == 200
     assert response.get_json()["setup_complete"] is False
+
+
+def test_setup_rejects_linux_incompatible_username(client):
+    response = client.post(
+        "/api/setup",
+        json={
+            "admin_password": "strong-pass-123",
+            "users": [{"username": "Alice.Smith", "password": "user-pass-123"}],
+            "guest_enabled": False,
+            "storage_target": "sd",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "lowercase" in response.get_json()["error"]

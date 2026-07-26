@@ -206,7 +206,7 @@ const pages = {
       <label>WiFi Name (SSID)<input id="ssid" value="${escapeHtml(net.ssid)}"/></label>
       <label>WiFi Password (optional)<input id="wifiPass" type="password" placeholder="${net.password_set ? 'Already configured' : 'Open network'}"/></label>
       <button id="saveNetwork">Apply (reboot required)</button>
-      <p>Current admin panel URL: <b>http://192.168.4.1</b></p>
+      <p>Current admin panel URL: <b>http://${escapeHtml(net.ip)}</b></p>
     `);
     document.getElementById('saveNetwork').onclick = async () => {
       const payload = await api('/api/network', { method: 'POST', body: JSON.stringify({ ssid: document.getElementById('ssid').value.trim(), password: document.getElementById('wifiPass').value }) });
