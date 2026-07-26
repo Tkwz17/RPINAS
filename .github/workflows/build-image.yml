@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     name: Build ${{ matrix.model.name }} image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -67,7 +67,7 @@ jobs:
 
       - name: Build custom Raspberry Pi OS image
         id: build_image
-        uses: pguyot/arm-runner-action@v2
+        uses: pguyot/arm-runner-action@v2.6.5
         with:
           base_image: ${{ matrix.model.base_image }}
           image_additional_mb: ${{ matrix.model.image_additional_mb }}
@@ -113,16 +113,19 @@ jobs:
           src="${{ steps.build_image.outputs.image }}"
           output="${{ matrix.model.output }}"
           min_bytes="${{ matrix.model.min_image_bytes }}"
+          artifact_dir="dist/${{ matrix.model.artifact }}"
 
-          if [ -z "$src" ] || [ ! -s "$src" ]; then
+          if [ -z "$src" ] || [ ! -f "$src" ] || [ ! -s "$src" ]; then
             echo "arm-runner-action did not produce a non-empty image at: $src" >&2
             exit 1
           fi
 
-          # Re-copy without sparse holes before compression. Some unzip tools report
-          # sparse Raspberry Pi images as 0 KB on disk even though their logical size
-          # is valid, which makes the downloaded OS image look broken.
-          cp --sparse=never "$src" "$output"
+          install -d "$artifact_dir"
+
+          # Re-materialize the raw image without sparse holes before compression.
+          # Sparse files can be misreported as empty or truncated by downstream tools
+          # once they have been zipped/downloaded as GitHub Actions artifacts.
+          dd if="$src" of="$output" bs=16M status=progress conv=fsync
 
           image_bytes=$(stat -c '%s' "$output")
           if [ "$image_bytes" -lt "$min_bytes" ]; then
@@ -130,7 +133,13 @@ jobs:
             exit 1
           fi
 
-          xz -0 -T 0 --check=crc64 -v "$output"
+          fdisk -l "$output" | tee "$artifact_dir/$output.fdisk.txt"
+          if ! fdisk -l "$output" | grep -q 'W95 FAT32\|Linux'; then
+            echo "Image does not contain the expected Raspberry Pi partition table" >&2
+            exit 1
+          fi
+
+          xz -0 -T 0 --check=crc64 --keep -v "$output"
           xz -t "$output.xz"
 
           uncompressed_bytes=$(xz --robot --list "$output.xz" | awk -F'\t' '$1 == "totals" { print $5 }')
@@ -139,13 +148,13 @@ jobs:
             exit 1
           fi
 
-          sha256sum "$output.xz" > "$output.xz.sha256"
+          mv "$output.xz" "$artifact_dir/"
+          sha256sum "$artifact_dir/$output.xz" > "$artifact_dir/$output.xz.sha256"
 
       - name: Upload image
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.model.artifact }}
-          path: |
-            ${{ matrix.model.output }}.xz
-            ${{ matrix.model.output }}.xz.sha256
+          path: dist/${{ matrix.model.artifact }}/
           if-no-files-found: error
+          retention-days: 14
