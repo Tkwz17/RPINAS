@@ -88,11 +88,11 @@ def _bootstrap_defaults() -> None:
     if get_config("guest_enabled") is None:
         set_config("guest_enabled", False)
     if get_config("wifi_ssid") is None:
-        set_config("wifi_ssid", "RPINAS")
+        set_config("wifi_ssid", os.environ.get("RPINAS_SSID", "RPINAS"))
     if get_config("wifi_password") is None:
         set_config("wifi_password", "")
     if get_config("storage_path") is None:
-        set_config("storage_path", DEFAULT_STORAGE_PATH)
+        set_config("storage_path", os.environ.get("RPINAS_STORAGE", DEFAULT_STORAGE_PATH))
     if get_config("storage_target") is None:
         set_config("storage_target", "sd")
     if get_config("setup_complete") is None:
@@ -196,7 +196,11 @@ def create_app() -> Flask:
                 "storage_target": get_config("storage_target", "sd"),
                 "guest_enabled": bool(get_config("guest_enabled", False)),
                 "storage_usage": usage,
-                "network_ip": "192.168.4.1",
+                "network_ip": os.environ.get("RPINAS_IP", "192.168.4.1"),
+                "model": os.environ.get("RPINAS_MODEL", "Raspberry Pi"),
+                "profile": os.environ.get("RPINAS_PROFILE", "balanced"),
+                "wifi_band": os.environ.get("RPINAS_MAX_WIFI_BAND", "2.4GHz/5GHz"),
+                "storage_note": os.environ.get("RPINAS_USB_STORAGE_NOTE", "Storage capability depends on the Raspberry Pi model and attached devices."),
                 "connected_users": len(_get_users()),
             }
         )
@@ -299,8 +303,15 @@ def create_app() -> Flask:
             {
                 "storage_usage": disk_usage(storage_path) if os.path.isdir(storage_path) else {"total": 0, "used": 0, "free": 0, "used_pct": 0},
                 "users": _get_users(),
-                "network": {"ssid": get_config("wifi_ssid", "RPINAS"), "ip": "192.168.4.1"},
-                "system": {"setup_complete": bool(get_config("setup_complete", False)), "service": "running"},
+                "network": {"ssid": get_config("wifi_ssid", os.environ.get("RPINAS_SSID", "RPINAS")), "ip": os.environ.get("RPINAS_IP", "192.168.4.1")},
+                "system": {
+                    "setup_complete": bool(get_config("setup_complete", False)),
+                    "service": "running",
+                    "model": os.environ.get("RPINAS_MODEL", "Raspberry Pi"),
+                    "profile": os.environ.get("RPINAS_PROFILE", "balanced"),
+                    "wifi_band": os.environ.get("RPINAS_MAX_WIFI_BAND", "2.4GHz/5GHz"),
+                    "storage_note": os.environ.get("RPINAS_USB_STORAGE_NOTE", "Storage capability depends on the Raspberry Pi model and attached devices."),
+                },
                 "logs": logs,
             }
         )

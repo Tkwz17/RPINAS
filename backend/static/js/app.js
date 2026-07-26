@@ -31,7 +31,8 @@ const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (ch) => ({
 function setupWizard(status) {
   content.innerHTML = card(`
     <h2>First Setup Wizard</h2>
-    <small>Default access point: <b>${escapeHtml(status.wifi_ssid)}</b> at <b>http://192.168.4.1</b></small>
+    <small>${escapeHtml(status.model)} (${escapeHtml(status.profile)} profile): access point <b>${escapeHtml(status.wifi_ssid)}</b> at <b>http://${escapeHtml(status.network_ip)}</b></small>
+    <small>WiFi: ${escapeHtml(status.wifi_band)}. Storage: ${escapeHtml(status.storage_note)}</small>
     <label>Admin Password (min 8)
       <input id="adminPass" type="password" />
     </label>
@@ -129,8 +130,9 @@ const pages = {
         ${card(`<h3>Storage Usage</h3><p>${data.storage_usage.used_pct}% used</p><small>${data.storage_usage.used} / ${data.storage_usage.total} bytes</small>`) }
         ${card(`<h3>Connected Users</h3><p>${data.users.length}</p>`) }
         ${card(`<h3>Network Status</h3><p>${escapeHtml(data.network.ssid)}</p><small>${escapeHtml(data.network.ip)}</small>`) }
-        ${card(`<h3>System Status</h3><span class="badge">${escapeHtml(data.system.service)}</span>`) }
+        ${card(`<h3>System Status</h3><span class="badge">${escapeHtml(data.system.service)}</span><p>${escapeHtml(data.system.model)}</p><small>${escapeHtml(data.system.profile)} profile · WiFi ${escapeHtml(data.system.wifi_band)}</small>`) }
       </div>
+      ${card(`<h3>Model Capability Notes</h3><p>${escapeHtml(data.system.storage_note)}</p>`) }
       ${card(`<h3>Recent Logs</h3><pre>${data.logs.map(l => `[${escapeHtml(l.created_at)}] ${escapeHtml(l.event_type)} ${escapeHtml(l.details)}`).join('\n')}</pre>`) }
     `;
   },
