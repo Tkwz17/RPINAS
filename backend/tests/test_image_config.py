@@ -37,3 +37,23 @@ def test_model_env_files_include_device_hardware_profiles():
         env_text = (REPO_ROOT / "rpi-image-gen" / filename).read_text(encoding="utf-8")
         for marker in markers:
             assert marker in env_text
+
+
+def test_image_workflow_verifies_non_empty_model_images_before_upload():
+    workflow = (REPO_ROOT / ".github/workflows/build-image.yml").read_text(encoding="utf-8")
+
+    assert "cp --sparse=never" in workflow
+    assert "Image is unexpectedly small" in workflow
+    assert "xz -t" in workflow
+    assert ".xz.sha256" in workflow
+
+
+def test_image_workflow_uses_model_specific_emulated_cpus():
+    workflow = (REPO_ROOT / ".github/workflows/build-image.yml").read_text(encoding="utf-8")
+
+    assert "cpu: cortex-a7" in workflow
+    assert "cpu_info: cpuinfo/raspberrypi_3b" in workflow
+    assert "cpu: max:cortex-a72" in workflow
+    assert "cpu_info: cpuinfo/raspberrypi_4b" in workflow
+    assert "cpu: cortex-a76" in workflow
+    assert "cpu_info: cpuinfo/raspberrypi_5" in workflow
