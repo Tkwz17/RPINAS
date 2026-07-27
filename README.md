@@ -56,6 +56,12 @@ For each model, the workflow:
 6. Enables RPINAS systemd services.
 7. Copies the resulting raw `.img` into the artifact so downloading and unzipping the GitHub artifact yields a single flashable OS image file and nothing else.
 
+Each workflow run should produce exactly three downloadable artifact ZIP files:
+
+- `rpinas-raspberry-pi-3-bookworm-image.zip` -> contains only `rpinas-raspberry-pi-3-bookworm.img`
+- `rpinas-raspberry-pi-4-bookworm-image.zip` -> contains only `rpinas-raspberry-pi-4-bookworm.img`
+- `rpinas-raspberry-pi-5-bookworm-image.zip` -> contains only `rpinas-raspberry-pi-5-bookworm.img`
+
 This repository intentionally does **not** commit generated image files.
 
 ## External Hook-Based Image Integration
@@ -72,12 +78,17 @@ The hook expects `ROOTFS` to point at a prepared Raspberry Pi OS root filesystem
 
 ## First Boot Flow
 
-1. Download and unzip a generated GitHub Actions artifact, then flash the raw `.img` file inside it with Raspberry Pi Imager or another imaging tool.
-2. Boot the Pi.
-3. The image configures `wlan0` as an AP using `/etc/default/rpinas` values.
-4. Connect to the model-specific SSID.
-5. Open `http://192.168.4.1`.
-6. Complete setup and sign in to the admin dashboard.
+1. Download the artifact ZIP for your hardware target:
+   - Raspberry Pi 3 -> `rpinas-raspberry-pi-3-bookworm-image.zip`
+   - Raspberry Pi 4 -> `rpinas-raspberry-pi-4-bookworm-image.zip`
+   - Raspberry Pi 5 -> `rpinas-raspberry-pi-5-bookworm-image.zip`
+2. Extract the ZIP once; you should get exactly one `.img` file for that model.
+3. Flash that `.img` directly with Raspberry Pi Imager or Balena Etcher.
+4. Boot the Pi.
+5. The image configures `wlan0` as an AP using `/etc/default/rpinas` values.
+6. Connect to the model-specific SSID.
+7. Open `http://192.168.4.1`.
+8. Complete setup and sign in to the admin dashboard.
 
 ## NAS File Structure
 
