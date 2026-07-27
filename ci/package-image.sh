@@ -11,11 +11,13 @@ output="$2"
 min_bytes="$3"
 artifact_dir="$4"
 fdisk_report="$(mktemp /tmp/rpinas-fdisk-XXXXXX.txt)"
-tmp_zip="$(mktemp /tmp/rpinas-zipcheck-XXXXXX.zip)"
+tmp_zip_dir="$(mktemp -d /tmp/rpinas-zipcheck-XXXXXX)"
+tmp_zip="$tmp_zip_dir/rpinas-zipcheck.zip"
 tmp_unzip_dir="$(mktemp -d /tmp/rpinas-zipcheck-XXXXXX)"
 
 cleanup() {
   rm -f "$fdisk_report" "$tmp_zip"
+  rm -rf "$tmp_zip_dir"
   rm -rf "$tmp_unzip_dir"
 }
 
