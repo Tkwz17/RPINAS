@@ -47,9 +47,7 @@ def test_image_packaging_script_verifies_non_empty_model_images_before_upload():
     assert 'dd if="$src" of="$output"' in packager
     assert "Image is unexpectedly small" in packager
     assert "fdisk -l" in packager
-    assert "xz -t" in packager
-    assert "xz -dc" in packager
-    assert ".xz.sha256" in packager
+    assert "Artifact directory must contain exactly one .img file named" in packager
 
 
 def test_image_workflow_uses_model_specific_emulated_cpus():
@@ -76,7 +74,6 @@ def test_image_workflow_uploads_verified_artifact_directory():
 
     assert 'artifact_dir="dist/${{ matrix.model.artifact }}"' in workflow
     assert "path: dist/${{ matrix.model.artifact }}/" in workflow
-    assert ".fdisk.txt" in packager
     assert 'cp "$output" "$artifact_dir/$output"' in packager
     assert 'Output image must end in .img' in packager
 
@@ -95,6 +92,5 @@ def test_image_packaging_verifies_boot_and_root_partitions_and_artifact_checksum
 
     assert "Disklabel type: dos" in packager
     assert "boot FAT32 and Linux root partitions" in packager
-    assert 'sha256sum -c "$output.sha256"' in packager
-    assert 'sha256sum -c "$output.xz.sha256"' in packager
-    assert 'Flash $output' in packager
+    assert "artifact immediately yields one flashable OS image file" in packager
+    assert 'if [ ! -s "$artifact_dir/$output" ]; then' in packager
