@@ -37,6 +37,12 @@ if [ "$image_bytes" -lt "$min_bytes" ]; then
   echo "Image is unexpectedly small: ${image_bytes} bytes (minimum ${min_bytes})" >&2
   exit 1
 fi
+src_bytes=$(stat -c '%s' "$src")
+if [ "$src_bytes" != "$image_bytes" ]; then
+  echo "Copied image size ${image_bytes} does not match source image size ${src_bytes}" >&2
+  exit 1
+fi
+cmp "$src" "$output"
 
 if ! fdisk -l "$output" | tee "$artifact_dir/$output.fdisk.txt"; then
   echo "fdisk could not read the generated image partition table" >&2
@@ -57,6 +63,7 @@ fi
 # non-empty byte count.
 cp "$output" "$artifact_dir/$output"
 ( cd "$artifact_dir" && sha256sum "$output" > "$output.sha256" && sha256sum -c "$output.sha256" )
+cmp "$artifact_dir/$output" "$output"
 
 xz -0 -T 0 --check=crc64 --keep -v "$output"
 xz -t "$output.xz"
@@ -75,6 +82,19 @@ if [ "$artifact_image_bytes" != "$image_bytes" ]; then
   echo "Artifact image size changed to ${artifact_image_bytes} bytes, expected ${image_bytes}" >&2
   exit 1
 fi
+
+for required_file in \
+  "$artifact_dir/$output" \
+  "$artifact_dir/$output.xz" \
+  "$artifact_dir/$output.sha256" \
+  "$artifact_dir/$output.xz.sha256" \
+  "$artifact_dir/$output.fdisk.txt"
+do
+  if [ ! -s "$required_file" ]; then
+    echo "Required artifact file is missing or empty: $required_file" >&2
+    exit 1
+  fi
+done
 
 cat > "$artifact_dir/README.txt" <<EOF
 RPINAS image artifact
