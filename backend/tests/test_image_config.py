@@ -28,9 +28,30 @@ def test_image_workflow_uses_model_specific_boot_tuning():
 
 def test_model_env_files_include_device_hardware_profiles():
     expected = {
-        "rpinas-pi3.env": ("RPINAS_BOARD=pi3", "RPINAS_SOC=BCM2837", "RPINAS_PRIMARY_STORAGE_BUS=USB2", "RPINAS_COUNTRY=US"),
-        "rpinas-pi4.env": ("RPINAS_BOARD=pi4", "RPINAS_SOC=BCM2711", "RPINAS_PRIMARY_STORAGE_BUS=USB3", "RPINAS_COUNTRY=US"),
-        "rpinas-pi5.env": ("RPINAS_BOARD=pi5", "RPINAS_SOC=BCM2712", "RPINAS_PCIE=enabled", "RPINAS_COUNTRY=US"),
+        "rpinas-pi3.env": (
+            "RPINAS_BOARD=pi3",
+            "RPINAS_SOC=BCM2837",
+            "RPINAS_PRIMARY_STORAGE_BUS=USB2",
+            "RPINAS_COUNTRY=US",
+            "RPINAS_WIFI_HW_MODE=g",
+            "RPINAS_WIFI_CHANNEL=6",
+        ),
+        "rpinas-pi4.env": (
+            "RPINAS_BOARD=pi4",
+            "RPINAS_SOC=BCM2711",
+            "RPINAS_PRIMARY_STORAGE_BUS=USB3",
+            "RPINAS_COUNTRY=US",
+            "RPINAS_WIFI_HW_MODE=a",
+            "RPINAS_WIFI_CHANNEL=36",
+        ),
+        "rpinas-pi5.env": (
+            "RPINAS_BOARD=pi5",
+            "RPINAS_SOC=BCM2712",
+            "RPINAS_PCIE=enabled",
+            "RPINAS_COUNTRY=US",
+            "RPINAS_WIFI_HW_MODE=a",
+            "RPINAS_WIFI_CHANNEL=36",
+        ),
     }
 
     for filename, markers in expected.items():
@@ -85,6 +106,8 @@ def test_network_setup_validates_hostapd_byte_limits_and_decimal_ip_octets():
     assert 'printf %s "${RPINAS_SSID}" | wc -c' in script
     assert "8-63 bytes" in script
     assert "octet_value=$((10#$octet))" in script
+    assert "RPINAS_WIFI_HW_MODE must be 'g' (2.4GHz) or 'a' (5GHz)" in script
+    assert "RPINAS_WIFI_CHANNEL must be between 1 and 196" in script
 
 
 def test_image_installers_copy_hostapd_dropin():
@@ -93,6 +116,30 @@ def test_image_installers_copy_hostapd_dropin():
 
     assert "systemd/hostapd.service.d/rpinas.conf" in workflow
     assert "systemd/hostapd.service.d/rpinas.conf" in hook
+
+
+def test_build_hook_requires_model_specific_env_file():
+    hook = (REPO_ROOT / "rpi-image-gen/build-hook.sh").read_text(encoding="utf-8")
+
+    assert "RPINAS_ENV_FILE must be set to a model-specific env file" in hook
+
+
+def test_default_env_file_sets_us_country_and_pi4_radio_defaults():
+    env_text = (REPO_ROOT / "rpi-image-gen/rpinas.env").read_text(encoding="utf-8")
+
+    assert "RPINAS_COUNTRY=US" in env_text
+    assert "RPINAS_WIFI_HW_MODE=a" in env_text
+    assert "RPINAS_WIFI_CHANNEL=36" in env_text
+
+
+def test_samba_setup_verifies_both_samba_services_active():
+    script = (REPO_ROOT / "scripts/samba_setup.sh").read_text(encoding="utf-8")
+    module = (REPO_ROOT / "backend/samba.py").read_text(encoding="utf-8")
+
+    assert "systemctl is-active --quiet smbd" in script
+    assert "systemctl is-active --quiet nmbd" in script
+    assert '["systemctl", "is-active", "--quiet", "smbd"]' in module
+    assert '["systemctl", "is-active", "--quiet", "nmbd"]' in module
 
 
 def test_image_packaging_verifies_boot_and_root_partitions_and_artifact_checksums():

@@ -23,6 +23,8 @@ def test_configure_access_point_defaults_to_open_network(monkeypatch, tmp_path):
     assert "ssid=RPINAS" in hostapd
     assert "auth_algs=1" in hostapd
     assert "ignore_broadcast_ssid=0" in hostapd
+    assert "hw_mode=g" in hostapd
+    assert "channel=6" in hostapd
     assert "wpa=2" not in hostapd
     assert hostapd_default.read_text(encoding="utf-8") == f'DAEMON_CONF="{hostapd_conf}"\n'
     assert dnsmasq_conf.exists()
@@ -86,3 +88,25 @@ def test_configure_access_point_defaults_country_to_us(monkeypatch, tmp_path):
 
     hostapd = hostapd_conf.read_text(encoding="utf-8")
     assert "country_code=US" in hostapd
+
+
+def test_configure_access_point_uses_env_wifi_mode_and_channel(monkeypatch, tmp_path):
+    hostapd_conf, _, _ = _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
+    monkeypatch.setenv("RPINAS_WIFI_HW_MODE", "a")
+    monkeypatch.setenv("RPINAS_WIFI_CHANNEL", "36")
+
+    network.configure_access_point("RPINAS")
+
+    hostapd = hostapd_conf.read_text(encoding="utf-8")
+    assert "hw_mode=a" in hostapd
+    assert "channel=36" in hostapd
+
+
+def test_configure_access_point_rejects_invalid_env_wifi_channel(monkeypatch, tmp_path):
+    _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
+    monkeypatch.setenv("RPINAS_WIFI_CHANNEL", "0")
+
+    with pytest.raises(ValueError, match="between 1 and 196"):
+        network.configure_access_point("RPINAS")

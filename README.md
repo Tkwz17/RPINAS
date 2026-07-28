@@ -74,7 +74,7 @@ RPINAS_ENV_FILE=rpi-image-gen/rpinas-pi5.env \
 ./rpi-image-gen/build-hook.sh
 ```
 
-The hook expects `ROOTFS` to point at a prepared Raspberry Pi OS root filesystem with the packages from `rpi-image-gen/packages/rpinas.list` already available or installable. It installs RPINAS into `/opt/rpinas`, copies the selected environment file to `/etc/default/rpinas`, and enables the RPINAS systemd units.
+The hook expects `ROOTFS` to point at a prepared Raspberry Pi OS root filesystem with the packages from `rpi-image-gen/packages/rpinas.list` already available or installable. `RPINAS_ENV_FILE` is required and must point to a model-specific env file (for example `rpi-image-gen/rpinas-pi3.env`, `rpi-image-gen/rpinas-pi4.env`, or `rpi-image-gen/rpinas-pi5.env`). The hook installs RPINAS into `/opt/rpinas`, copies the selected environment file to `/etc/default/rpinas`, and enables the RPINAS systemd units.
 
 ## First Boot Flow
 
@@ -101,7 +101,7 @@ The admin password is only for the web dashboard. NAS access uses the Samba user
 
 ## Runtime Configuration Notes
 
-- Network defaults come from `/etc/default/rpinas` and include `RPINAS_SSID`, `RPINAS_IP`, optional `RPINAS_PASSPHRASE`, and `RPINAS_COUNTRY` (default `US` in included model env files).
+- Network defaults come from `/etc/default/rpinas` and include `RPINAS_SSID`, `RPINAS_IP`, optional `RPINAS_PASSPHRASE`, `RPINAS_COUNTRY` (default `US`), plus optional AP radio tuning with `RPINAS_WIFI_HW_MODE` (`g` for 2.4GHz or `a` for 5GHz) and `RPINAS_WIFI_CHANNEL`.
 - NAS usernames must be Linux/Samba-compatible: start with a lowercase letter or underscore, then use lowercase letters, numbers, underscores, or hyphens; maximum length is 32 characters.
 - Backend-driven network changes update hostapd/dnsmasq configuration and return `reboot_required=true`.
 - Samba configuration is regenerated when setup completes, users change, guest access changes, or storage target changes.
