@@ -10,7 +10,8 @@ if [[ ! -f "$RPINAS_ENV_FILE" ]]; then
     exit 1
 fi
 
-install -d "$ROOTFS/opt/rpinas-src" "$ROOTFS/usr/local/bin" "$ROOTFS/etc/systemd/system" "$ROOTFS/etc/default"
+install -d "$ROOTFS/opt/rpinas-src" "$ROOTFS/usr/local/bin" "$ROOTFS/etc/systemd/system" \
+    "$ROOTFS/etc/systemd/system/hostapd.service.d" "$ROOTFS/etc/default"
 rm -rf "$ROOTFS/opt/rpinas-src/backend"
 cp -a "$SRC_DIR/backend" "$ROOTFS/opt/rpinas-src/backend"
 
@@ -24,5 +25,7 @@ install -m 0644 "$SRC_DIR/systemd/rpinas-backend.service" "$ROOTFS/etc/systemd/s
 install -m 0644 "$SRC_DIR/systemd/rpinas-firstboot.service" "$ROOTFS/etc/systemd/system/rpinas-firstboot.service"
 install -m 0644 "$SRC_DIR/systemd/rpinas-network-setup.service" "$ROOTFS/etc/systemd/system/rpinas-network-setup.service"
 install -m 0644 "$SRC_DIR/systemd/rpinas-samba-setup.service" "$ROOTFS/etc/systemd/system/rpinas-samba-setup.service"
+install -m 0644 "$SRC_DIR/systemd/hostapd.service.d/rpinas.conf" \
+    "$ROOTFS/etc/systemd/system/hostapd.service.d/rpinas.conf"
 chroot "$ROOTFS" /usr/local/bin/rpinas-install-backend
 chroot "$ROOTFS" systemctl enable rpinas-firstboot.service rpinas-network-setup.service rpinas-samba-setup.service rpinas-backend.service

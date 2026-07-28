@@ -2,6 +2,7 @@ import hashlib
 import os
 import re
 import subprocess
+import sys
 import time
 
 HOSTAPD_CONF = "/etc/hostapd/hostapd.conf"
@@ -10,7 +11,7 @@ DNSMASQ_CONF = "/etc/dnsmasq.d/rpinas.conf"
 NM_UNMANAGED_CONF = "/etc/NetworkManager/conf.d/rpinas-unmanaged.conf"
 WLAN_IFACE = "wlan0"
 DEFAULT_AP_IP = "192.168.4.1"
-DEFAULT_COUNTRY_CODE = "GB"
+DEFAULT_COUNTRY_CODE = "US"
 
 # 802.11 SSIDs are at most 32 bytes; disallow control characters (in
 # particular newlines) so a crafted SSID can't inject extra directives
@@ -51,16 +52,63 @@ def _service_exists(name: str) -> bool:
     return name in result.stdout
 
 
+def _interface_exists(name: str) -> bool:
+    return os.path.exists(f"/sys/class/net/{name}")
+
+
+def detect_wireless_iface() -> str | None:
+    try:
+        result = subprocess.run(["iw", "dev"], capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        return None
+    for line in result.stdout.splitlines():
+        match = re.match(r"^\s*Interface\s+(\S+)$", line)
+        if match:
+            return match.group(1)
+    return None
+
+
+def resolve_wlan_iface(timeout_seconds: float = 5.0) -> str:
+    global WLAN_IFACE
+    if _interface_exists(WLAN_IFACE):
+        return WLAN_IFACE
+
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        detected = detect_wireless_iface()
+        if detected and _interface_exists(detected):
+            WLAN_IFACE = detected
+            return WLAN_IFACE
+        time.sleep(0.5)
+
+    print(
+        f"RPINAS: no wireless interface found (expected {WLAN_IFACE}) after {timeout_seconds:.1f}s",
+        file=sys.stderr,
+    )
+    return WLAN_IFACE
+
+
 def unblock_radio() -> None:
     subprocess.run(["rfkill", "unblock", "all"], check=False)
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        rfkill_state = subprocess.run(["rfkill", "list"], capture_output=True, text=True, check=False)
+        if "Soft blocked: yes" not in rfkill_state.stdout:
+            break
+        time.sleep(0.5)
+    else:
+        print("RPINAS: radio remains soft-blocked after rfkill unblock", file=sys.stderr)
+
+    resolve_wlan_iface()
 
 
 def release_interface_from_network_stack() -> None:
     """Make sure NetworkManager (Bookworm default) and dhcpcd (older images)
     both leave wlan0 alone, since hostapd needs exclusive control of it."""
+    iface = resolve_wlan_iface()
     os.makedirs(os.path.dirname(NM_UNMANAGED_CONF), exist_ok=True)
     with open(NM_UNMANAGED_CONF, "w", encoding="utf-8") as f:
-        f.write(f"[keyfile]\nunmanaged-devices=interface-name:{WLAN_IFACE}\n")
+        f.write(f"[keyfile]\nunmanaged-devices=interface-name:{iface}\n")
 
     if _service_exists("NetworkManager.service"):
         reloaded = subprocess.run(["systemctl", "reload", "NetworkManager"], check=False)
@@ -72,13 +120,14 @@ def release_interface_from_network_stack() -> None:
             content = open("/etc/dhcpcd.conf", "r", encoding="utf-8").read()
         except FileNotFoundError:
             content = ""
-        if f"denyinterfaces {WLAN_IFACE}" not in content:
+        if f"denyinterfaces {iface}" not in content:
             with open("/etc/dhcpcd.conf", "a", encoding="utf-8") as f:
-                f.write(f"\ndenyinterfaces {WLAN_IFACE}\n")
+                f.write(f"\ndenyinterfaces {iface}\n")
         subprocess.run(["systemctl", "restart", "dhcpcd"], check=False)
 
 
 def configure_access_point(ssid: str, password: str | None = None) -> None:
+    iface = resolve_wlan_iface()
     ssid = validate_ssid(ssid)
     channel = "6"
     if password and len(password) < 8:
@@ -92,9 +141,9 @@ wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
 """
     else:
-        wpa = "auth_algs=1\nignore_broadcast_ssid=0\n"
+        wpa = "auth_algs=1\n"
 
-    hostapd = f"""interface={WLAN_IFACE}
+    hostapd = f"""interface={iface}
 driver=nl80211
 country_code={_validate_country_code(os.environ.get("RPINAS_COUNTRY", DEFAULT_COUNTRY_CODE))}
 ieee80211d=1
@@ -102,11 +151,12 @@ ssid={ssid}
 hw_mode=g
 channel={channel}
 macaddr_acl=0
+ignore_broadcast_ssid=0
 {wpa.strip()}\n"""
 
     ap_ip = _validate_ipv4_address(os.environ.get("RPINAS_IP", DEFAULT_AP_IP))
     dhcp_prefix = ".".join(ap_ip.split(".")[:3])
-    dnsmasq = f"""interface={WLAN_IFACE}
+    dnsmasq = f"""interface={iface}
 bind-interfaces
 dhcp-range={dhcp_prefix}.10,{dhcp_prefix}.200,255.255.255.0,24h
 address=/#/{ap_ip}
@@ -127,8 +177,16 @@ def apply_network_services() -> None:
     subprocess.run(["systemctl", "unmask", "hostapd"], check=False)
     subprocess.run(["systemctl", "enable", "hostapd", "dnsmasq"], check=True)
     # hostapd must claim the interface before dnsmasq binds to it.
-    subprocess.run(["systemctl", "restart", "hostapd"], check=True)
-    subprocess.run(["systemctl", "is-active", "--quiet", "hostapd"], check=True)
+    for attempt in range(1, 4):
+        restarted = subprocess.run(["systemctl", "restart", "hostapd"], check=False)
+        active = subprocess.run(["systemctl", "is-active", "--quiet", "hostapd"], check=False)
+        if restarted.returncode == 0 and active.returncode == 0:
+            break
+        if attempt == 3:
+            raise subprocess.CalledProcessError(
+                active.returncode or restarted.returncode, ["systemctl", "restart", "hostapd"]
+            )
+        time.sleep(2)
     time.sleep(2)
     subprocess.run(["systemctl", "restart", "dnsmasq"], check=True)
     subprocess.run(["systemctl", "is-active", "--quiet", "dnsmasq"], check=True)
@@ -140,8 +198,9 @@ def set_static_ap_address() -> None:
     (which is told to ignore wlan0 in release_interface_from_network_stack)."""
     unblock_radio()
     release_interface_from_network_stack()
-    subprocess.run(["ip", "link", "set", WLAN_IFACE, "down"], check=False)
-    subprocess.run(["ip", "addr", "flush", "dev", WLAN_IFACE], check=False)
-    subprocess.run(["ip", "link", "set", WLAN_IFACE, "up"], check=False)
+    iface = resolve_wlan_iface()
+    subprocess.run(["ip", "link", "set", iface, "down"], check=False)
+    subprocess.run(["ip", "addr", "flush", "dev", iface], check=False)
+    subprocess.run(["ip", "link", "set", iface, "up"], check=False)
     ap_ip = _validate_ipv4_address(os.environ.get("RPINAS_IP", DEFAULT_AP_IP))
-    subprocess.run(["ip", "addr", "add", f"{ap_ip}/24", "dev", WLAN_IFACE], check=False)
+    subprocess.run(["ip", "addr", "add", f"{ap_ip}/24", "dev", iface], check=False)
