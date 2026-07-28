@@ -15,6 +15,7 @@ def _redirect_network_files(monkeypatch, tmp_path):
 
 def test_configure_access_point_defaults_to_open_network(monkeypatch, tmp_path):
     hostapd_conf, hostapd_default, dnsmasq_conf = _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
 
     network.configure_access_point("RPINAS")
 
@@ -29,6 +30,7 @@ def test_configure_access_point_defaults_to_open_network(monkeypatch, tmp_path):
 
 def test_configure_access_point_rejects_long_ssid(monkeypatch, tmp_path):
     _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
 
     with pytest.raises(ValueError, match="1-32 bytes"):
         network.configure_access_point("é" * 17)
@@ -36,6 +38,7 @@ def test_configure_access_point_rejects_long_ssid(monkeypatch, tmp_path):
 
 def test_configure_access_point_rejects_short_password(monkeypatch, tmp_path):
     _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
 
     with pytest.raises(ValueError, match="at least 8 characters"):
         network.configure_access_point("RPINAS", "short")
@@ -43,6 +46,7 @@ def test_configure_access_point_rejects_short_password(monkeypatch, tmp_path):
 
 def test_configure_access_point_writes_wpa_psk(monkeypatch, tmp_path):
     hostapd_conf, _, _ = _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
 
     network.configure_access_point("RPINAS", "strong-pass")
 
@@ -54,6 +58,7 @@ def test_configure_access_point_writes_wpa_psk(monkeypatch, tmp_path):
 
 def test_configure_access_point_uses_env_ap_ip(monkeypatch, tmp_path):
     _, _, dnsmasq_conf = _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
     monkeypatch.setenv("RPINAS_IP", "10.42.0.1")
 
     network.configure_access_point("RPINAS")
@@ -65,7 +70,19 @@ def test_configure_access_point_uses_env_ap_ip(monkeypatch, tmp_path):
 
 def test_configure_access_point_rejects_invalid_env_ap_ip(monkeypatch, tmp_path):
     _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
     monkeypatch.setenv("RPINAS_IP", "999.42.0.1")
 
     with pytest.raises(ValueError, match="octets"):
         network.configure_access_point("RPINAS")
+
+
+def test_configure_access_point_defaults_country_to_us(monkeypatch, tmp_path):
+    hostapd_conf, _, _ = _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
+    monkeypatch.delenv("RPINAS_COUNTRY", raising=False)
+
+    network.configure_access_point("RPINAS")
+
+    hostapd = hostapd_conf.read_text(encoding="utf-8")
+    assert "country_code=US" in hostapd

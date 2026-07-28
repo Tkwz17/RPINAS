@@ -79,7 +79,8 @@ jobs:
             apt-get update
             xargs -r -a rpi-image-gen/packages/rpinas.list apt-get install -y
 
-            install -d /opt/rpinas-src /usr/local/bin /etc/systemd/system /etc/default
+            install -d /opt/rpinas-src /usr/local/bin /etc/systemd/system \
+              /etc/systemd/system/hostapd.service.d /etc/default
             cp -r backend /opt/rpinas-src/backend
 
             install -m 0755 scripts/first_boot.sh /usr/local/bin/rpinas-first-boot
@@ -92,6 +93,7 @@ jobs:
             install -m 0644 systemd/rpinas-firstboot.service /etc/systemd/system/rpinas-firstboot.service
             install -m 0644 systemd/rpinas-network-setup.service /etc/systemd/system/rpinas-network-setup.service
             install -m 0644 systemd/rpinas-samba-setup.service /etc/systemd/system/rpinas-samba-setup.service
+            install -m 0644 systemd/hostapd.service.d/rpinas.conf /etc/systemd/system/hostapd.service.d/rpinas.conf
 
             boot_config_path=/boot/firmware/config.txt
             if [ ! -f "$boot_config_path" ]; then

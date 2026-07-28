@@ -28,9 +28,9 @@ def test_image_workflow_uses_model_specific_boot_tuning():
 
 def test_model_env_files_include_device_hardware_profiles():
     expected = {
-        "rpinas-pi3.env": ("RPINAS_BOARD=pi3", "RPINAS_SOC=BCM2837", "RPINAS_PRIMARY_STORAGE_BUS=USB2"),
-        "rpinas-pi4.env": ("RPINAS_BOARD=pi4", "RPINAS_SOC=BCM2711", "RPINAS_PRIMARY_STORAGE_BUS=USB3"),
-        "rpinas-pi5.env": ("RPINAS_BOARD=pi5", "RPINAS_SOC=BCM2712", "RPINAS_PCIE=enabled"),
+        "rpinas-pi3.env": ("RPINAS_BOARD=pi3", "RPINAS_SOC=BCM2837", "RPINAS_PRIMARY_STORAGE_BUS=USB2", "RPINAS_COUNTRY=US"),
+        "rpinas-pi4.env": ("RPINAS_BOARD=pi4", "RPINAS_SOC=BCM2711", "RPINAS_PRIMARY_STORAGE_BUS=USB3", "RPINAS_COUNTRY=US"),
+        "rpinas-pi5.env": ("RPINAS_BOARD=pi5", "RPINAS_SOC=BCM2712", "RPINAS_PCIE=enabled", "RPINAS_COUNTRY=US"),
     }
 
     for filename, markers in expected.items():
@@ -85,6 +85,14 @@ def test_network_setup_validates_hostapd_byte_limits_and_decimal_ip_octets():
     assert 'printf %s "${RPINAS_SSID}" | wc -c' in script
     assert "8-63 bytes" in script
     assert "octet_value=$((10#$octet))" in script
+
+
+def test_image_installers_copy_hostapd_dropin():
+    workflow = (REPO_ROOT / ".github/workflows/build-image.yml").read_text(encoding="utf-8")
+    hook = (REPO_ROOT / "rpi-image-gen/build-hook.sh").read_text(encoding="utf-8")
+
+    assert "systemd/hostapd.service.d/rpinas.conf" in workflow
+    assert "systemd/hostapd.service.d/rpinas.conf" in hook
 
 
 def test_image_packaging_verifies_boot_and_root_partitions_and_artifact_checksums():

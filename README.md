@@ -85,7 +85,7 @@ The hook expects `ROOTFS` to point at a prepared Raspberry Pi OS root filesystem
 2. Extract the ZIP once; you should get exactly one `.img` file for that model.
 3. Flash that `.img` directly with Raspberry Pi Imager or Balena Etcher.
 4. Boot the Pi.
-5. The image configures `wlan0` as an AP using `/etc/default/rpinas` values.
+5. The image configures `wlan0` as an AP using `/etc/default/rpinas` values (and falls back to the first `iw dev` interface if `wlan0` is absent).
 6. Connect to the model-specific SSID.
 7. Open `http://192.168.4.1`.
 8. Complete setup and sign in to the admin dashboard.
@@ -101,7 +101,7 @@ The admin password is only for the web dashboard. NAS access uses the Samba user
 
 ## Runtime Configuration Notes
 
-- Network defaults come from `/etc/default/rpinas` and include `RPINAS_SSID`, `RPINAS_IP`, optional `RPINAS_PASSPHRASE`, and `RPINAS_COUNTRY`.
+- Network defaults come from `/etc/default/rpinas` and include `RPINAS_SSID`, `RPINAS_IP`, optional `RPINAS_PASSPHRASE`, and `RPINAS_COUNTRY` (default `US` in included model env files).
 - NAS usernames must be Linux/Samba-compatible: start with a lowercase letter or underscore, then use lowercase letters, numbers, underscores, or hyphens; maximum length is 32 characters.
 - Backend-driven network changes update hostapd/dnsmasq configuration and return `reboot_required=true`.
 - Samba configuration is regenerated when setup completes, users change, guest access changes, or storage target changes.
@@ -128,7 +128,7 @@ bash -n scripts/*.sh rpi-image-gen/build-hook.sh
 
 ## Known Limitations
 
-- The appliance assumes `wlan0` is the AP-capable wireless interface.
+- AP setup defaults to `wlan0`, but falls back to the first wireless interface reported by `iw dev` when needed.
 - AP reliability depends on Raspberry Pi model, regulatory country, firmware, and local radio conditions.
 - External storage must already be mounted for automatic selection.
 - Samba user and service management require root privileges on the Pi.
