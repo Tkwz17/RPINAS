@@ -90,3 +90,4 @@ def apply_samba() -> None:
     subprocess.run(["systemctl", "enable", "smbd", "nmbd"], check=True)
     subprocess.run(["systemctl", "restart", "smbd", "nmbd"], check=True)
     subprocess.run(["systemctl", "is-active", "--quiet", "smbd"], check=True)
+    subprocess.run(["systemctl", "is-active", "--quiet", "nmbd"], check=True)

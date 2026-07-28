@@ -12,12 +12,15 @@ NM_UNMANAGED_CONF = "/etc/NetworkManager/conf.d/rpinas-unmanaged.conf"
 WLAN_IFACE = "wlan0"
 DEFAULT_AP_IP = "192.168.4.1"
 DEFAULT_COUNTRY_CODE = "US"
+DEFAULT_WIFI_HW_MODE = "g"
+DEFAULT_WIFI_CHANNEL = "6"
 
 # 802.11 SSIDs are at most 32 bytes; disallow control characters (in
 # particular newlines) so a crafted SSID can't inject extra directives
 # into hostapd.conf.
 SSID_PATTERN = re.compile(r"^[^\x00-\x1f\x7f]+$")
 COUNTRY_PATTERN = re.compile(r"^[A-Z]{2}$")
+WIFI_HW_MODE_PATTERN = re.compile(r"^[ga]$")
 
 
 def validate_ssid(ssid: str) -> str:
@@ -43,6 +46,21 @@ def _validate_country_code(country_code: str) -> str:
     if not COUNTRY_PATTERN.fullmatch(country_code):
         raise ValueError("Country code must be two uppercase ASCII letters")
     return country_code
+
+
+def _validate_wifi_hw_mode(hw_mode: str) -> str:
+    if not WIFI_HW_MODE_PATTERN.fullmatch(hw_mode):
+        raise ValueError("WiFi mode must be 'g' (2.4GHz) or 'a' (5GHz)")
+    return hw_mode
+
+
+def _validate_wifi_channel(channel: str) -> str:
+    if not channel.isdigit():
+        raise ValueError("WiFi channel must be a positive integer")
+    channel_value = int(channel, 10)
+    if channel_value < 1 or channel_value > 196:
+        raise ValueError("WiFi channel must be between 1 and 196")
+    return str(channel_value)
 
 
 def _service_exists(name: str) -> bool:
@@ -129,7 +147,8 @@ def release_interface_from_network_stack() -> None:
 def configure_access_point(ssid: str, password: str | None = None) -> None:
     iface = resolve_wlan_iface()
     ssid = validate_ssid(ssid)
-    channel = "6"
+    hw_mode = _validate_wifi_hw_mode(os.environ.get("RPINAS_WIFI_HW_MODE", DEFAULT_WIFI_HW_MODE))
+    channel = _validate_wifi_channel(os.environ.get("RPINAS_WIFI_CHANNEL", DEFAULT_WIFI_CHANNEL))
     if password and len(password) < 8:
         raise ValueError("WiFi password must be empty or at least 8 characters")
     if password:
@@ -148,7 +167,7 @@ driver=nl80211
 country_code={_validate_country_code(os.environ.get("RPINAS_COUNTRY", DEFAULT_COUNTRY_CODE))}
 ieee80211d=1
 ssid={ssid}
-hw_mode=g
+hw_mode={hw_mode}
 channel={channel}
 macaddr_acl=0
 ignore_broadcast_ssid=0

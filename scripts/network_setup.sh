@@ -17,6 +17,8 @@ RPINAS_SSID="${RPINAS_SSID:-RPINAS}"
 RPINAS_IP="${RPINAS_IP:-192.168.4.1}"
 RPINAS_COUNTRY="${RPINAS_COUNTRY:-US}"
 RPINAS_PASSPHRASE="${RPINAS_PASSPHRASE:-}"
+RPINAS_WIFI_HW_MODE="${RPINAS_WIFI_HW_MODE:-g}"
+RPINAS_WIFI_CHANNEL="${RPINAS_WIFI_CHANNEL:-6}"
 WLAN_IFACE="wlan0"
 
 echo "[$(date --iso-8601=seconds)] Starting RPINAS network setup"
@@ -28,6 +30,21 @@ fi
 
 if [[ ! "${RPINAS_COUNTRY}" =~ ^[A-Z]{2}$ ]]; then
     echo "RPINAS_COUNTRY must be two uppercase ASCII letters" >&2
+    exit 1
+fi
+
+if [[ ! "${RPINAS_WIFI_HW_MODE}" =~ ^[ga]$ ]]; then
+    echo "RPINAS_WIFI_HW_MODE must be 'g' (2.4GHz) or 'a' (5GHz)" >&2
+    exit 1
+fi
+
+if [[ ! "${RPINAS_WIFI_CHANNEL}" =~ ^[0-9]+$ ]]; then
+    echo "RPINAS_WIFI_CHANNEL must be a positive integer WiFi channel" >&2
+    exit 1
+fi
+channel_value=$((10#$RPINAS_WIFI_CHANNEL))
+if ((channel_value < 1 || channel_value > 196)); then
+    echo "RPINAS_WIFI_CHANNEL must be between 1 and 196" >&2
     exit 1
 fi
 
@@ -129,8 +146,8 @@ driver=nl80211
 country_code=${RPINAS_COUNTRY}
 ieee80211d=1
 ssid=${RPINAS_SSID}
-hw_mode=g
-channel=6
+hw_mode=${RPINAS_WIFI_HW_MODE}
+channel=${channel_value}
 macaddr_acl=0
 ignore_broadcast_ssid=0
 CFG

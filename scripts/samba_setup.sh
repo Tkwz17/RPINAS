@@ -29,6 +29,7 @@ testparm -s /etc/samba/smb.conf >/dev/null
 systemctl enable smbd nmbd
 systemctl restart smbd nmbd
 systemctl is-active --quiet smbd
+systemctl is-active --quiet nmbd
 
 mkdir -p /var/lib/rpinas
 touch /var/lib/rpinas/.samba_configured

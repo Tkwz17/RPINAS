@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOTFS="${ROOTFS:?ROOTFS must be set by rpi-image-gen}"
 SRC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-RPINAS_ENV_FILE="${RPINAS_ENV_FILE:-$SRC_DIR/rpi-image-gen/rpinas.env}"
+RPINAS_ENV_FILE="${RPINAS_ENV_FILE:?RPINAS_ENV_FILE must be set to a model-specific env file (for example rpi-image-gen/rpinas-pi3.env)}"
 
 if [[ ! -f "$RPINAS_ENV_FILE" ]]; then
     echo "RPINAS env file not found: $RPINAS_ENV_FILE" >&2
