@@ -22,7 +22,7 @@ This repository contains the application, runtime setup scripts, systemd units, 
 - Samba shares:
   - `Shared` at `<storage>/Shared`.
   - Per-user private shares at `<storage>/Users/<username>`.
-- systemd units for network setup, Samba setup, first-boot initialization, and the backend web UI.
+- systemd units for network setup, Samba setup, first-boot initialization, the backend web UI, and an external GPIO status LED.
 
 ## Supported Raspberry Pi Targets
 
@@ -53,7 +53,7 @@ For each model, the workflow:
 3. Copies the backend, setup scripts, selected model environment file, and systemd units into the image.
 4. Appends model-specific boot tuning to the image boot config, such as Pi 3 32-bit mode, Pi 4 64-bit headless tuning, or Pi 5 PCIe enablement for NVMe/HAT storage.
 5. Runs `rpinas-install-backend` inside the image to create `/opt/rpinas/.venv` and install backend Python dependencies.
-6. Enables RPINAS systemd services.
+6. Enables RPINAS systemd services, including the status LED booting/ready units.
 7. Copies the resulting raw `.img` into the artifact so downloading and unzipping the GitHub artifact yields a single flashable OS image file and nothing else.
 
 Each workflow run should produce exactly three downloadable artifact ZIP files:
@@ -85,10 +85,47 @@ The hook expects `ROOTFS` to point at a prepared Raspberry Pi OS root filesystem
 2. Extract the ZIP once; you should get exactly one `.img` file for that model.
 3. Flash that `.img` directly with Raspberry Pi Imager or Balena Etcher.
 4. Boot the Pi.
-5. The image configures `wlan0` as an AP using `/etc/default/rpinas` values (and falls back to the first `iw dev` interface if `wlan0` is absent).
-6. Connect to the model-specific SSID.
-7. Open `http://192.168.4.1`.
-8. Complete setup and sign in to the admin dashboard.
+5. The external status LED slow-blinks while startup services run.
+6. The image configures `wlan0` as an AP using `/etc/default/rpinas` values (and falls back to the first `iw dev` interface if `wlan0` is absent).
+7. Connect to the model-specific SSID.
+8. Open `http://192.168.4.1`.
+9. Complete setup and sign in to the admin dashboard.
+
+## Status LED Wiring Guide
+
+RPINAS images configure an optional 2-pin external status LED using the Raspberry Pi kernel `gpio-led` overlay. The default is GPIO17 (physical pin 11), active-high, exposed at `/sys/class/leds/rpinas-status`.
+
+Runtime states:
+
+| LED state | Meaning |
+| --- | --- |
+| Slow blink | Booting: RPINAS startup services are still initializing. |
+| Solid on | Ready: AP/network services, Samba services, and the backend web UI are active and accepting connections. |
+| Fast blink | Error: a critical startup service failed or readiness timed out. The error state remains visible until reboot or manual recovery. |
+
+Wiring for the default active-high configuration:
+
+1. Connect the LED anode (long leg, positive side) to a 220-330Ω series resistor.
+2. Connect the other side of the resistor to Raspberry Pi GPIO17 (physical pin 11).
+3. Connect the LED cathode (short leg, flat side) to any Raspberry Pi GND pin, such as physical pin 9.
+
+Configuration defaults live in `/etc/default/rpinas`:
+
+```bash
+RPINAS_LED_ENABLED=1
+RPINAS_LED_GPIO=17
+RPINAS_LED_ACTIVE_LOW=0
+RPINAS_LED_NAME=rpinas-status
+```
+
+To use a different GPIO on a deployed image, update both `/etc/default/rpinas` and the matching `dtoverlay=gpio-led,...` line in `/boot/firmware/config.txt` (or `/boot/config.txt` on older layouts), then reboot. For example, GPIO27 would use `RPINAS_LED_GPIO=27` and `dtoverlay=gpio-led,gpio=27,label=rpinas-status,active_low=0`. Set `RPINAS_LED_ENABLED=0` to disable LED state management.
+
+Troubleshooting:
+
+- LED never lights: confirm polarity, use a 220-330Ω resistor in series, verify the wire is on GPIO17/physical pin 11 (not pin 17), and check that `/sys/class/leds/rpinas-status` exists after boot.
+- LED is inverted: set `active_low=1` in the boot overlay and `RPINAS_LED_ACTIVE_LOW=1`, or reverse an external transistor/driver circuit as appropriate.
+- LED keeps fast-blinking: inspect failed startup services with `systemctl --failed` and logs such as `journalctl -u rpinas-network-setup -u hostapd -u dnsmasq -u rpinas-backend -b --no-pager`.
+- LED slow-blinks indefinitely: check whether `hostapd`, `dnsmasq`, `smbd`, `nmbd`, or `rpinas-backend` is still starting or stuck.
 
 ## NAS File Structure
 
@@ -102,6 +139,7 @@ The admin password is only for the web dashboard. NAS access uses the Samba user
 ## Runtime Configuration Notes
 
 - Network defaults come from `/etc/default/rpinas` and include `RPINAS_SSID`, `RPINAS_IP`, optional `RPINAS_PASSPHRASE`, `RPINAS_COUNTRY` (default `US`), plus optional AP radio tuning with `RPINAS_WIFI_HW_MODE` (`g` for 2.4GHz or `a` for 5GHz) and `RPINAS_WIFI_CHANNEL`.
+- Status LED defaults also come from `/etc/default/rpinas`: `RPINAS_LED_ENABLED=1`, `RPINAS_LED_GPIO=17`, `RPINAS_LED_ACTIVE_LOW=0`, and `RPINAS_LED_NAME=rpinas-status`.
 - NAS usernames must be Linux/Samba-compatible: start with a lowercase letter or underscore, then use lowercase letters, numbers, underscores, or hyphens; maximum length is 32 characters.
 - Backend-driven network changes update hostapd/dnsmasq configuration and return `reboot_required=true`.
 - Samba configuration is regenerated when setup completes, users change, guest access changes, or storage target changes.

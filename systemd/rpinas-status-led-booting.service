@@ -1,0 +1,14 @@
+[Unit]
+Description=RPINAS Status LED Booting State
+DefaultDependencies=no
+After=local-fs.target
+Before=basic.target
+
+[Service]
+EnvironmentFile=-/etc/default/rpinas
+Type=oneshot
+ExecStart=/usr/local/bin/rpinas-status-led booting
+RemainAfterExit=yes
+
+[Install]
+WantedBy=basic.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=RPINAS Status LED Ready State
+After=hostapd.service dnsmasq.service smbd.service nmbd.service rpinas-backend.service
+Wants=hostapd.service dnsmasq.service smbd.service nmbd.service rpinas-backend.service
+OnFailure=rpinas-status-led-error.service
+
+[Service]
+EnvironmentFile=-/etc/default/rpinas
+Type=oneshot
+ExecStart=/usr/local/bin/rpinas-status-led ready-check
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

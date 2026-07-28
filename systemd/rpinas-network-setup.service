@@ -1,5 +1,6 @@
 [Unit]
 Description=RPINAS Network Setup
+OnFailure=rpinas-status-led-error.service
 Wants=hostapd.service dnsmasq.service
 Before=hostapd.service dnsmasq.service
 ConditionPathExists=!/var/lib/rpinas/.network_configured
