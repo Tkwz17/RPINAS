@@ -1,5 +1,6 @@
 [Unit]
 Description=RPINAS Samba Setup
+OnFailure=rpinas-status-led-error.service
 Wants=smbd.service nmbd.service
 Before=smbd.service nmbd.service
 ConditionPathExists=!/var/lib/rpinas/.samba_configured

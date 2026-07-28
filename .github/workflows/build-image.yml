@@ -87,12 +87,16 @@ jobs:
             install -m 0755 scripts/network_setup.sh /usr/local/bin/rpinas-network-setup
             install -m 0755 scripts/samba_setup.sh /usr/local/bin/rpinas-samba-setup
             install -m 0755 scripts/install_backend.sh /usr/local/bin/rpinas-install-backend
+            install -m 0755 scripts/status_led.sh /usr/local/bin/rpinas-status-led
             install -m 0644 "${{ matrix.model.env_file }}" /etc/default/rpinas
 
             install -m 0644 systemd/rpinas-backend.service /etc/systemd/system/rpinas-backend.service
             install -m 0644 systemd/rpinas-firstboot.service /etc/systemd/system/rpinas-firstboot.service
             install -m 0644 systemd/rpinas-network-setup.service /etc/systemd/system/rpinas-network-setup.service
             install -m 0644 systemd/rpinas-samba-setup.service /etc/systemd/system/rpinas-samba-setup.service
+            install -m 0644 systemd/rpinas-status-led-booting.service /etc/systemd/system/rpinas-status-led-booting.service
+            install -m 0644 systemd/rpinas-status-led-ready.service /etc/systemd/system/rpinas-status-led-ready.service
+            install -m 0644 systemd/rpinas-status-led-error.service /etc/systemd/system/rpinas-status-led-error.service
             install -m 0644 systemd/hostapd.service.d/rpinas.conf /etc/systemd/system/hostapd.service.d/rpinas.conf
 
             boot_config_path=/boot/firmware/config.txt
@@ -102,11 +106,17 @@ jobs:
             cat >> "$boot_config_path" <<'RPINAS_BOOT_CONFIG'
             ${{ matrix.model.boot_config }}
             RPINAS_BOOT_CONFIG
+            cat >> "$boot_config_path" <<'RPINAS_LED_BOOT_CONFIG'
+
+            # RPINAS external status LED: GPIO17, active-high, label /sys/class/leds/rpinas-status.
+            dtoverlay=gpio-led,gpio=17,label=rpinas-status,active_low=0
+            RPINAS_LED_BOOT_CONFIG
 
             /usr/local/bin/rpinas-install-backend
 
-            systemctl enable rpinas-firstboot.service rpinas-network-setup.service \
-              rpinas-samba-setup.service rpinas-backend.service
+            systemctl enable rpinas-status-led-booting.service rpinas-firstboot.service \
+              rpinas-network-setup.service rpinas-samba-setup.service \
+              rpinas-backend.service rpinas-status-led-ready.service
 
       - name: Package and verify image
         run: |

@@ -1,0 +1,8 @@
+[Unit]
+Description=RPINAS Status LED Error State
+
+[Service]
+EnvironmentFile=-/etc/default/rpinas
+Type=oneshot
+ExecStart=/usr/local/bin/rpinas-status-led error
+RemainAfterExit=yes

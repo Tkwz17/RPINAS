@@ -1,5 +1,6 @@
 [Unit]
 Description=RPINAS First Boot Initialization
+OnFailure=rpinas-status-led-error.service
 After=network.target rpinas-network-setup.service rpinas-samba-setup.service
 Requires=rpinas-network-setup.service rpinas-samba-setup.service
 ConditionPathExists=!/var/lib/rpinas/.first_boot_done

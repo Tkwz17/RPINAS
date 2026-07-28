@@ -1,5 +1,6 @@
 [Unit]
 Description=RPINAS Backend API and Admin UI
+OnFailure=rpinas-status-led-error.service
 After=rpinas-firstboot.service rpinas-network-setup.service rpinas-samba-setup.service smbd.service
 Wants=rpinas-network-setup.service rpinas-samba-setup.service smbd.service
 
