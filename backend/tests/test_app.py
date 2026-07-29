@@ -80,3 +80,25 @@ def test_setup_rejects_linux_incompatible_username(client):
 
     assert response.status_code == 400
     assert "lowercase" in response.get_json()["error"]
+
+
+def test_setup_preserves_nas_user_password_whitespace(client, monkeypatch):
+    from backend import app as app_module
+
+    captured_passwords = []
+    monkeypatch.setattr(app_module, "set_samba_password", lambda username, password: captured_passwords.append(password))
+    monkeypatch.setattr(app_module, "_configure_nas_runtime", lambda storage_path, guest_enabled: None)
+    monkeypatch.setattr(app_module, "_configure_wifi_runtime", lambda ssid, password: None)
+
+    response = client.post(
+        "/api/setup",
+        json={
+            "admin_password": "strong-pass-123",
+            "users": [{"username": "alice", "password": "  user-pass-123  "}],
+            "guest_enabled": False,
+            "storage_target": "sd",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured_passwords == ["  user-pass-123  "]

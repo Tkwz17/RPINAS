@@ -11,7 +11,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .db import get_config, get_conn, init_db, log_event, set_config
-from .network import apply_network_services, configure_access_point, set_static_ap_address, validate_ssid
+from .network import apply_network_services, configure_access_point, set_static_ap_address, validate_ssid, validate_wifi_password
 from .samba import apply_samba, delete_samba_user, set_samba_password, write_samba_config
 from .storage import (
     DEFAULT_STORAGE_PATH,
@@ -229,7 +229,7 @@ def create_app() -> Flask:
         seen = set()
         for entry in users:
             username = str(entry.get("username", "")).strip()
-            password = str(entry.get("password", "")).strip()
+            password = str(entry.get("password", ""))
             if not username or not password:
                 return jsonify({"error": "Each user requires username and password"}), 400
             if not _valid_username(username):
@@ -326,7 +326,7 @@ def create_app() -> Flask:
     def users_add() -> Any:
         payload = request.get_json(silent=True) or {}
         username = str(payload.get("username", "")).strip()
-        password = str(payload.get("password", "")).strip()
+        password = str(payload.get("password", ""))
         if not username or not password:
             return jsonify({"error": "Username and password are required"}), 400
         if not _valid_username(username):
@@ -364,7 +364,7 @@ def create_app() -> Flask:
         if not _valid_username(username):
             return jsonify({"error": "Invalid username"}), 400
         payload = request.get_json(silent=True) or {}
-        password = str(payload.get("password", "")).strip()
+        password = str(payload.get("password", ""))
         if not password:
             return jsonify({"error": "Password is required"}), 400
 
@@ -404,8 +404,10 @@ def create_app() -> Flask:
             validate_ssid(ssid)
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
-        if password and len(password) < 8:
-            return jsonify({"error": "WiFi password must be at least 8 characters"}), 400
+        try:
+            validate_wifi_password(password)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
 
         set_config("wifi_ssid", ssid)
         set_config("wifi_password", password)

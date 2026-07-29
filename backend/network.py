@@ -147,15 +147,20 @@ def release_interface_from_network_stack() -> None:
         subprocess.run(["systemctl", "restart", "dhcpcd"], check=False)
 
 
-def configure_access_point(ssid: str, password: str | None = None) -> None:
-    iface = resolve_wlan_iface()
-    ssid = validate_ssid(ssid)
-    hw_mode = _validate_wifi_hw_mode(os.environ.get("RPINAS_WIFI_HW_MODE", DEFAULT_WIFI_HW_MODE))
-    channel = _validate_wifi_channel(os.environ.get("RPINAS_WIFI_CHANNEL", DEFAULT_WIFI_CHANNEL), hw_mode)
+def validate_wifi_password(password: str | None) -> str | None:
     if password:
         password_bytes = len(password.encode("utf-8"))
         if password_bytes < 8 or password_bytes > 63 or re.search(r"[\x00-\x1f\x7f]", password):
             raise ValueError("WiFi password must be empty or 8-63 bytes without control characters")
+    return password
+
+
+def configure_access_point(ssid: str, password: str | None = None) -> None:
+    iface = resolve_wlan_iface()
+    ssid = validate_ssid(ssid)
+    password = validate_wifi_password(password)
+    hw_mode = _validate_wifi_hw_mode(os.environ.get("RPINAS_WIFI_HW_MODE", DEFAULT_WIFI_HW_MODE))
+    channel = _validate_wifi_channel(os.environ.get("RPINAS_WIFI_CHANNEL", DEFAULT_WIFI_CHANNEL), hw_mode)
     if password:
         psk = hashlib.pbkdf2_hmac("sha1", password.encode("utf-8"), ssid.encode("utf-8"), 4096, 32).hex()
         wpa = f"""
