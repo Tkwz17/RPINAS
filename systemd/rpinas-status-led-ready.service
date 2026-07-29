@@ -1,7 +1,8 @@
 [Unit]
 Description=RPINAS Status LED Ready State
 After=hostapd.service dnsmasq.service smbd.service nmbd.service rpinas-backend.service
-Wants=hostapd.service dnsmasq.service smbd.service nmbd.service rpinas-backend.service
+Requires=rpinas-backend.service
+Wants=rpinas-backend.service
 OnFailure=rpinas-status-led-error.service
 
 [Service]
