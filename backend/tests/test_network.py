@@ -138,3 +138,13 @@ def test_resolve_wlan_iface_raises_when_no_wireless_interface(monkeypatch):
 
     with pytest.raises(RuntimeError, match="no wireless interface"):
         network.resolve_wlan_iface(timeout_seconds=0)
+
+
+def test_validate_wifi_password_rejects_64_byte_multibyte_password():
+    with pytest.raises(ValueError, match="8-63 bytes"):
+        network.validate_wifi_password("é" * 32)
+
+
+def test_validate_wifi_password_rejects_control_characters():
+    with pytest.raises(ValueError, match="control characters"):
+        network.validate_wifi_password("strong\npass")

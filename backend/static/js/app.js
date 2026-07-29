@@ -66,7 +66,7 @@ function setupWizard(status) {
   document.getElementById('finishSetup').onclick = async () => {
     const users = [...document.querySelectorAll('.wu')].map((usernameEl, i) => ({
       username: usernameEl.value.trim(),
-      password: document.querySelectorAll('.wp')[i].value.trim(),
+      password: document.querySelectorAll('.wp')[i].value,
     })).filter(u => u.username && u.password);
 
     try {
