@@ -107,7 +107,8 @@ def test_network_setup_validates_hostapd_byte_limits_and_decimal_ip_octets():
     assert "8-63 bytes" in script
     assert "octet_value=$((10#$octet))" in script
     assert "RPINAS_WIFI_HW_MODE must be 'g' (2.4GHz) or 'a' (5GHz)" in script
-    assert "RPINAS_WIFI_CHANNEL must be between 1 and 196" in script
+    assert "US 2.4GHz AP channel must be between 1 and 11" in script
+    assert "US 5GHz AP channel must be one of" in script
 
 
 def test_image_installers_copy_hostapd_dropin():
@@ -149,3 +150,24 @@ def test_image_packaging_verifies_boot_and_root_partitions_and_artifact_checksum
     assert "boot FAT32 and Linux root partitions" in packager
     assert "artifact immediately yields one flashable OS image file" in packager
     assert 'if [ ! -s "$artifact_dir/$output" ]; then' in packager
+
+
+def test_network_setup_service_does_not_race_hostapd_or_dnsmasq_startup():
+    unit = (REPO_ROOT / "systemd/rpinas-network-setup.service").read_text(encoding="utf-8")
+
+    assert "Wants=hostapd.service dnsmasq.service" not in unit
+    assert "Before=hostapd.service dnsmasq.service" in unit
+
+
+def test_network_setup_script_restricts_country_to_us():
+    script = (REPO_ROOT / "scripts" / "network_setup.sh").read_text(encoding="utf-8")
+
+    assert 'RPINAS_COUNTRY}" != "US"' in script
+    assert "RPINAS is currently configured for US operation only" in script
+
+
+def test_status_ready_service_does_not_start_network_or_samba_services_directly():
+    unit = (REPO_ROOT / "systemd/rpinas-status-led-ready.service").read_text(encoding="utf-8")
+
+    assert "Wants=hostapd.service dnsmasq.service smbd.service nmbd.service" not in unit
+    assert "Requires=rpinas-backend.service" in unit

@@ -45,6 +45,8 @@ def _validate_ipv4_address(address: str) -> str:
 def _validate_country_code(country_code: str) -> str:
     if not COUNTRY_PATTERN.fullmatch(country_code):
         raise ValueError("Country code must be two uppercase ASCII letters")
+    if country_code != DEFAULT_COUNTRY_CODE:
+        raise ValueError("RPINAS is currently configured for US operation only")
     return country_code
 
 
@@ -54,12 +56,15 @@ def _validate_wifi_hw_mode(hw_mode: str) -> str:
     return hw_mode
 
 
-def _validate_wifi_channel(channel: str) -> str:
+def _validate_wifi_channel(channel: str, hw_mode: str = DEFAULT_WIFI_HW_MODE) -> str:
     if not channel.isdigit():
         raise ValueError("WiFi channel must be a positive integer")
     channel_value = int(channel, 10)
-    if channel_value < 1 or channel_value > 196:
-        raise ValueError("WiFi channel must be between 1 and 196")
+    if hw_mode == "g" and channel_value not in range(1, 12):
+        raise ValueError("US 2.4GHz AP channel must be between 1 and 11")
+    allowed_5ghz_channels = {36, 40, 44, 48, 149, 153, 157, 161, 165}
+    if hw_mode == "a" and channel_value not in allowed_5ghz_channels:
+        raise ValueError("US 5GHz AP channel must be one of 36, 40, 44, 48, 149, 153, 157, 161, or 165")
     return str(channel_value)
 
 
@@ -99,11 +104,9 @@ def resolve_wlan_iface(timeout_seconds: float = 5.0) -> str:
             return WLAN_IFACE
         time.sleep(0.5)
 
-    print(
-        f"RPINAS: no wireless interface found (expected {WLAN_IFACE}) after {timeout_seconds:.1f}s",
-        file=sys.stderr,
+    raise RuntimeError(
+        f"RPINAS: no wireless interface found (expected {WLAN_IFACE}) after {timeout_seconds:.1f}s"
     )
-    return WLAN_IFACE
 
 
 def unblock_radio() -> None:
@@ -148,9 +151,11 @@ def configure_access_point(ssid: str, password: str | None = None) -> None:
     iface = resolve_wlan_iface()
     ssid = validate_ssid(ssid)
     hw_mode = _validate_wifi_hw_mode(os.environ.get("RPINAS_WIFI_HW_MODE", DEFAULT_WIFI_HW_MODE))
-    channel = _validate_wifi_channel(os.environ.get("RPINAS_WIFI_CHANNEL", DEFAULT_WIFI_CHANNEL))
-    if password and len(password) < 8:
-        raise ValueError("WiFi password must be empty or at least 8 characters")
+    channel = _validate_wifi_channel(os.environ.get("RPINAS_WIFI_CHANNEL", DEFAULT_WIFI_CHANNEL), hw_mode)
+    if password:
+        password_bytes = len(password.encode("utf-8"))
+        if password_bytes < 8 or password_bytes > 63 or re.search(r"[\x00-\x1f\x7f]", password):
+            raise ValueError("WiFi password must be empty or 8-63 bytes without control characters")
     if password:
         psk = hashlib.pbkdf2_hmac("sha1", password.encode("utf-8"), ssid.encode("utf-8"), 4096, 32).hex()
         wpa = f"""

@@ -42,7 +42,7 @@ def test_configure_access_point_rejects_short_password(monkeypatch, tmp_path):
     _redirect_network_files(monkeypatch, tmp_path)
     monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
 
-    with pytest.raises(ValueError, match="at least 8 characters"):
+    with pytest.raises(ValueError, match="8-63 bytes"):
         network.configure_access_point("RPINAS", "short")
 
 
@@ -108,5 +108,33 @@ def test_configure_access_point_rejects_invalid_env_wifi_channel(monkeypatch, tm
     monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
     monkeypatch.setenv("RPINAS_WIFI_CHANNEL", "0")
 
-    with pytest.raises(ValueError, match="between 1 and 196"):
+    with pytest.raises(ValueError, match="between 1 and 11"):
         network.configure_access_point("RPINAS")
+
+
+def test_configure_access_point_rejects_non_us_country(monkeypatch, tmp_path):
+    _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
+    monkeypatch.setenv("RPINAS_COUNTRY", "CA")
+
+    with pytest.raises(ValueError, match="US operation only"):
+        network.configure_access_point("RPINAS")
+
+
+def test_configure_access_point_rejects_dfs_5ghz_channel_for_us(monkeypatch, tmp_path):
+    _redirect_network_files(monkeypatch, tmp_path)
+    monkeypatch.setattr(network, "resolve_wlan_iface", lambda timeout_seconds=5.0: "wlan0")
+    monkeypatch.setenv("RPINAS_WIFI_HW_MODE", "a")
+    monkeypatch.setenv("RPINAS_WIFI_CHANNEL", "52")
+
+    with pytest.raises(ValueError, match="US 5GHz AP channel"):
+        network.configure_access_point("RPINAS")
+
+
+def test_resolve_wlan_iface_raises_when_no_wireless_interface(monkeypatch):
+    monkeypatch.setattr(network, "WLAN_IFACE", "wlan-missing")
+    monkeypatch.setattr(network, "_interface_exists", lambda name: False)
+    monkeypatch.setattr(network, "detect_wireless_iface", lambda: None)
+
+    with pytest.raises(RuntimeError, match="no wireless interface"):
+        network.resolve_wlan_iface(timeout_seconds=0)

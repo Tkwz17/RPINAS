@@ -32,6 +32,10 @@ if [[ ! "${RPINAS_COUNTRY}" =~ ^[A-Z]{2}$ ]]; then
     echo "RPINAS_COUNTRY must be two uppercase ASCII letters" >&2
     exit 1
 fi
+if [[ "${RPINAS_COUNTRY}" != "US" ]]; then
+    echo "RPINAS is currently configured for US operation only; set RPINAS_COUNTRY=US" >&2
+    exit 1
+fi
 
 if [[ ! "${RPINAS_WIFI_HW_MODE}" =~ ^[ga]$ ]]; then
     echo "RPINAS_WIFI_HW_MODE must be 'g' (2.4GHz) or 'a' (5GHz)" >&2
@@ -43,9 +47,18 @@ if [[ ! "${RPINAS_WIFI_CHANNEL}" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 channel_value=$((10#$RPINAS_WIFI_CHANNEL))
-if ((channel_value < 1 || channel_value > 196)); then
-    echo "RPINAS_WIFI_CHANNEL must be between 1 and 196" >&2
+if [[ "${RPINAS_WIFI_HW_MODE}" == "g" ]] && ((channel_value < 1 || channel_value > 11)); then
+    echo "US 2.4GHz AP channel must be between 1 and 11" >&2
     exit 1
+fi
+if [[ "${RPINAS_WIFI_HW_MODE}" == "a" ]]; then
+    case "${channel_value}" in
+        36|40|44|48|149|153|157|161|165) ;;
+        *)
+            echo "US 5GHz AP channel must be one of 36, 40, 44, 48, 149, 153, 157, 161, or 165" >&2
+            exit 1
+            ;;
+    esac
 fi
 
 if [[ ! "${RPINAS_IP}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
